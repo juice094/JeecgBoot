@@ -32,4 +32,4 @@
 1. 客户端形态：桌面端（Tauri/Electron，倾向）vs 纯 Web
 2. 群聊规模与消息量级预期
 3. AI 会话消息是否全部过合规审计（倾向：是，gate 在路由进账号池之前）
-4. 本仓库推送目标仓库名与可见性（public/private）
+4. [x] ~~本仓库推送目标~~ → 已定：juice094/JeecgBoot（jeecgboot 公开 fork），设计文档推至 `pilot/design` 分支（59914fb），W1 代码分支从上游 main 切
