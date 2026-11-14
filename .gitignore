@@ -1,0 +1,32 @@
+# ============================================================
+# 排除规则 —— 配置优先于约定
+# 本仓库 remote 是公开 fork（juice094/JeecgBoot），
+# 下列路径永不允许进入版本库。规则在此，不依赖操作者自觉。
+# ============================================================
+
+# ===== 工作区内部文件 =====
+/.openclaw/
+/memory_consolidation/
+/skills/
+/diary/
+/memorized_media/
+
+# ===== 工作区元文件（agent persona / 平台配置，非项目产物）=====
+/AGENTS.md
+/BOOTSTRAP.md
+/HEARTBEAT.md
+/IDENTITY.md
+/SOUL.md
+/TOOLS.md
+/USER.md
+
+# ===== 内部运维文档（含凭据与基础设施信息，脱敏后才考虑入库）=====
+/docs/
+
+# ===== 含服务器公网 IP 的日志 =====
+/memory/2026-11-13.md
+
+# ===== 运行时杂项 =====
+__pycache__/
+*.pyc
+*.log

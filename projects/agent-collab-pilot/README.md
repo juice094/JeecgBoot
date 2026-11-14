@@ -22,7 +22,7 @@
 
 ## 关键决策速览
 
-1. **组网**：WireGuard 星型（hub=本机），`10.10.0.0/24`，安全组放行 UDP 51820
+1. **组网**：Tailscale（安全组由服务商持有、不可开公网端口 → 打洞/DERP 零入站；v1.104.7 已装待授权），内网 100.x
 2. **注册中心**：Nacos（临时实例 + metadata 携带 capabilities；Nacos3 MCP registry 承接 MCP 类工具）
 3. **任务调度**：`agent_tasks` 表 + 原子抢占租约（MySQL，不并入 Nacos）
 4. **消息机制**：写扩散 + 每人 inbox 独立游标（TIM 式），离线补拉靠游标

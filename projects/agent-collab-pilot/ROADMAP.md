@@ -4,7 +4,7 @@
 - [ ] jeecg 裁剪（砍 online/报表/大屏，保留 RBAC）
 - [ ] devices / device_sessions 建表 + 设备准入链路（注册→批准→WSS 握手签发 token）
 - [ ] WSS 网关骨架（connect/auth/sync/pull/ack 帧）
-- [ ] WireGuard 组网执行（本 runbook 已就绪：docs/05）
+- [ ] Tailscale 组网：服务器浏览器授权登录 + 成员加入（runbook：docs/05）
 
 ## W2：消息通路
 - [ ] 消息模型落地（写扩散 + inbox + Redis 发号）
@@ -27,6 +27,8 @@
 - [x] 组网方案与 runbook（docs/05）
 - [x] GitHub 授权：juice094（docs/06）
 - [x] 全量建表语句（docs/schema.sql）
+- [x] 内部运维文档沉淀（docker/jeecg/mycat2/nacos/clash 踩坑记录，留在工作区未入库）
+- [x] 排除规则落配置（.gitignore，配置优先于约定）
 
 ## 待确认的决策（阻塞 W1 末/W3）
 1. 客户端形态：桌面端（Tauri/Electron，倾向）vs 纯 Web

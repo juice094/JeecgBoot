@@ -34,11 +34,11 @@ server → client: batch {msgs[]} + 新游标
 
 ## 设备准入（类微信"登录设备管理"）
 
-1. 客户端生成密钥对 + 指纹 + WireGuard pubkey，申请注册 → `pending`
+1. 客户端生成密钥对 + 指纹 + Tailscale 节点公钥，申请注册 → `pending`
 2. 管理员工作台批准（试点可自动批准）
 3. WSS 握手：证书挑战 → 校验 sys_user 凭据 + device 状态 → 签发 user+device 绑定 token
 4. 吊销即断连；设备列表页可远程踢出
-5. **网络层**（WireGuard `AllowedIPs` 按 `10.10.0.x` 粗粒度准入）与**应用层**（握手细校验）各管各的
+5. **网络层**（tailnet ACL 按用户/节点粗粒度准入）与**应用层**（握手细校验）各管各的
 
 ## 合规审计（客户端执行，签名防绕过）
 
