@@ -15,7 +15,7 @@
 | [docs/02-account-pool-and-browser.md](docs/02-account-pool-and-browser.md) | 隔离浏览器池、账号生命周期、人机会话锁 |
 | [docs/03-im-chat-and-sync.md](docs/03-im-chat-and-sync.md) | 消息模型、多端同步协议、合规审计 |
 | [docs/04-agent-registry-and-tasks.md](docs/04-agent-registry-and-tasks.md) | Nacos 注册发现、任务租约调度 |
-| [docs/05-network-wireguard.md](docs/05-network-wireguard.md) | 团队设备组网 runbook |
+| [docs/05-network-tailscale.md](docs/05-network-tailscale.md) | 团队设备组网 runbook |
 | [docs/06-github-auth-setup.md](docs/06-github-auth-setup.md) | GitHub 授权（已完成） |
 | [docs/schema.sql](docs/schema.sql) | 全量建表语句（MySQL 8，分片友好） |
 | [ROADMAP.md](ROADMAP.md) | 四周 MVP 切片与当前状态 |
