@@ -8,6 +8,8 @@
 - Clash（mihomo）已装未配订阅；端口矩阵与运维细节见工作区内部 docs/（gitignore 排除，不入公开库）
 - 协作偏好：直接给可执行 runbook + 明确决策点；技术讨论接受架构推演，但每轮要收敛到"下一步动作"
 - GitHub 身份：**juice094**（gh CLI 已授权，push 前必须说明目标仓库与内容）
+- **双通 SSH 已通**（11-14）：服务器↔rog-x（Win11 主力机，Tailscale 100.97.76.85，Windows 用户 **22414**），本机 `/root/.ssh/id_ed25519` 免密（无 passphrase）；rog-x→服务器走 root@100.78.65.37
+- SSH 三约束（用户明确）：不改 Win11 administrators_authorized_keys / 不删本机 authorized_keys 既有条目 / 不动 id_ed25519；排障先跑 `ssh -o BatchMode=yes -o ConnectTimeout=5 22414@100.97.76.85 "echo AUTH_OK"`
 
 ## 进行中项目：Agent Collab Pilot
 
@@ -25,7 +27,7 @@
 7. 内网服务只监听 Tailscale 网卡（100.x），公网零暴露（安全组不可自管，无公网入站）
 8. webAI 账号按可消耗资源设计（ToS 风险已告知用户）
 
-**下一步**：W1——① `tailscale up` 浏览器授权完成组网（链接当日有效）② jeecg 裁剪 ③ 设备准入链路。待用户答复：客户端形态、群聊规模、审计范围。
+**下一步**：W1——① jeecg 裁剪 ② 设备准入链路（Tailscale 节点身份 + devices.wg_pubkey 绑定；双通 SSH 已具备对 rog-x 的远程执行能力）。待用户答复：客户端形态、群聊规模、审计范围；阻塞项：GLaDOS 订阅链接（写入 /opt/clash/glados.url）未提供。
 
 ## 教训 / 备忘
 
