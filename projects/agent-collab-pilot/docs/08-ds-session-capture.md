@@ -72,3 +72,13 @@ acc profile 浏览器（页面钩子 A）
 2. A 路线 PoC：一个 acc profile 注入钩子，抓单会话双向消息落 jsonl（不动 dsh 本体，旁路验证）
 3. session-ingest 脚手架：nacos 注册 + /v1/batches 落 mysql（复用 jeecg-pilot 基础设施）
 4. C 路线 web API 面侦察（单独低风控节奏，先 1 个号手工 curl 摸端点）
+
+## 六、PoC 实录（11-16 00:25 云端本机，未碰号池）
+
+产物：`poc/ds-capture/`（hook.js 页面钩子 + cdp-poc.mjs 零依赖 CDP 注入器 + capture-*.jsonl + page-evidence.png）
+
+1. **机制验证 ✅**：CDP `Page.addScriptToEvaluateOnNewDocument` 注入 → fetch/XHR 双包装 → console 通道 → jsonl 落盘，全链路通（`boot` 记录在目标 origin 落盘）。
+2. **决定性环境约束 ⚠️**：本云服务器（腾讯云 DC IP）访问 chat.deepseek.com 被 **CloudFront 边缘 403**（`ERROR: The request could not be satisfied`，page-evidence.png 存档）——IP/WAF 层拦截，发生在任何 JS 之前，无头与否无关。
+   - **推论：云端不能直接抓 DS 网页，路线 A/B/C 的采集端都必须跑在 rog-x/成员侧**（住宅 IP）——与 §三架构一致，且把它从"设计选择"升级为"硬约束"
+   - 云端定位再确认：只当接收/存储/查询枢纽（session-ingest），永远不需要直连 chat.deepseek.com
+3. **待 rog-x 侧验证**：acc 真实 profile + 有头浏览器（xvfb）下页面是否正常渲染（池已在用=应为 yes）；钩子注入后对会话双向消息的保真度实测——下一步在 rog-x 挑 1 个 acc profile 做。
