@@ -107,7 +107,7 @@ if command -v openclaw > /dev/null 2>&1; then
     || log "ERROR: alert trigger failed"
   # 失败重试一次（k2d8 偶发空 tool_call 导致 400）
   sleep 50
-  st=$(openclaw cron runs --id "$ALERT_JOB_ID" 2>/dev/null | jq -r '.entries[-1].status // "unknown"')
+  st=$(openclaw cron runs --id "$ALERT_JOB_ID" 2>/dev/null | jq -r '.entries[0].status // "unknown"')
   if [ "$st" != "ok" ]; then
     log "alert run status=$st, retry once"
     sleep 15
