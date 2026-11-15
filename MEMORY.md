@@ -31,6 +31,16 @@
 
 **仓库巡检（11-15 起，常驻）**：**零 LLM 方案**——系统 crontab `*/20 8-23 * * *` 跑 `projects/agent-collab-pilot/scripts/repo-poll.sh`（bash+gh+jq 比对 成员/分支/PR/作者，只读）；有变更才注入数据并触发 openclaw cron `repo-watch-alert`（id 521d3f55-a789-49e4-baeb-c508ddf5b4ab，schedule 2月31日 永不自启）写简报投递 kimi-claw。基线/协议在 `projects/agent-collab-pilot/state/repo-watch.json`。已授权职责：分支合并评估+代码检查+文档整理（合并前须用户点头）。**当前协作者三人成团：juice094（你）+ Ym3699 + qingyanjunzi（11-15 10:20 加入，当日经你确认为预期成员）**。成员白名单已同步进 repo-watch.json 的 expected_members，qingyanjunzi 不会再触发名单外告警。已获你授权：巡检简报自动推送主会话、**不用复述**；协作者相关文档更新与功能面融合可自动执行。另：本地 master 领先 pilot/design 两 commit 仍待确认推送。**已知坑：k2d8 偶发 input=null 空 tool_call → 空 tool_result → LLM 400（11-14 session 损坏同因）；isolate agent 数据须内联 prompt + 重试兜底，勿依赖运行时修**。CLI 报 "pairing required" → `openclaw devices approve <requestId>`。
 
+## 共享记忆资产（11-15 接入，三源两仓一指针）
+
+用户指示：rog-x（22414）侧有 AI 集群与团队协作的历史资产需共用。已探明并接入：
+- **`juice094/gray-workspace`**（PRIVATE，GitHub）→ 本地镜像 `/root/shared/gray-workspace`。rog-x 的 KimiCode 主工作区，cron 每 4h 自动快照推送。含：子代理台账 `agents/workspace-kimicode/memory/subagent-registry.md`（多 agent 调度纪律）、experience/ops-*.md 经验库、plans/（含 multi-account-browser 设计输入）
+- **`juice094/agent-collab-playbook`**（PRIVATE，GitHub）→ 本地镜像 `/root/shared/agent-collab-playbook`。AI 协作 Playbook v0.1（2026-09-20）：**文件即总线、人审即评估器、编号制经验库（只压缩不改号）、按需调度无自主心跳**——与我们 pilot 的架构决策同源互证（写扩散/人审/审计都可对照）。04-框架抉择有五类编排方案七条判据
+- **MAC 工程书**（仅 rog-x 本地，无 GitHub）：`C:/Users/22414/dev/mac-workspace/spec/eng-spec-webcode-2026-11-01.md` v1.4 = 多账号浏览器工作台合同级规范：编排器管理多独立浏览器实例（每实例=一账号身份：独立数据目录/固定代理出口/卫生设置）+ CDP 遥控器注册表；Node24+/零第三方依赖/Windows 优先/运行态 probe 证据。`plans/multi-account-browser/SPEC-POINTER.md` 载宿裁定：**工程书禁止物理拷贝（拷贝=第二真源必然漂移）**——只存指针
+- 同步机制：`/root/shared/sync-mem.sh`（纯 git pull）挂 crontab `23,53 * * * *`，零 LLM
+
+**与 pilot 的关键差异待对齐**：MAC 用"编排器+进程隔离"（Windows 优先），我们 pilot 冻结的是"一账号一容器"（debian+xvfb+x11vnc+chromium）；MAC 多出的"固定代理出口/指纹卫生/数美采集面 RE 结论"经验需并入浏览器池设计。下次涉及浏览器池设计时先读 `/root/shared/gray-workspace/agents/workspace-kimicode/plans/multi-account-browser/p3-kernel-design-input-2026-11-02.md`
+
 ## 教训 / 备忘
 
 - Chrome 136+：`--remote-debugging-port` 必须配非默认 `--user-data-dir`，且与人工会话互斥（SingletonLock）——账号池设计的硬约束
