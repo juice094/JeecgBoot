@@ -1,0 +1,23 @@
+{
+  "repo": "juice094/JeecgBoot",
+  "repo_kind": "public fork (jeecgboot)",
+  "expected_members": ["juice094", "Ym3699"],
+  "third_member": {
+    "status": "pending-user-input",
+    "note": "当前协作者仅 2 人。第三成员 GitHub 用户名待用户提供后加入 expected_members。"
+  },
+  "known_branches": {
+    "main": "6184e2448fbf0a84e7f638596324c69c1a747549",
+    "pilot/design": "4f14c94e84624fb7e0339ae3371bc61a5aeed32b"
+  },
+  "known_prs": [],
+  "local_unpushed": {
+    "branch": "master",
+    "ahead_of": "origin/pilot/design",
+    "commits": ["87a8144", "698a365"],
+    "note": "docs(07)+README 修正+11-14 memory 日志，含 memory/2026-11-14.md（公开可见），推送前已向用户说明"
+  },
+  "last_check": "2026-11-15T09:25:00+08:00",
+  "last_change_seen": "2026-11-14T10:47:00+08:00",
+  "created": "2026-11-15T09:30:00+08:00"
+}

@@ -29,6 +29,8 @@
 
 **下一步**：W1——① jeecg 裁剪 ② 设备准入链路（Tailscale 节点身份 + devices.wg_pubkey 绑定；双通 SSH 已具备对 rog-x 的远程执行能力）。待用户答复：客户端形态、群聊规模、审计范围；阻塞项：GLaDOS 订阅链接（写入 /opt/clash/glados.url）未提供。
 
+**仓库巡检（11-15 起，常驻）**：cron `repo-watch`（`14,49 8-23 * * *` Asia/Shanghai，~45min）只读巡查 `juice094/JeecgBoot`——成员名单/分支 head/PR/新提交作者校验，基线与协议在 `projects/agent-collab-pilot/state/repo-watch.json`，告警直发 kimi-claw。已授权职责：分支合并评估+代码检查+文档整理（合并前须用户点头）。**当前协作者仅 juice094+Ym3699 两人，第三成员用户名待用户提供**。另：本地 master 领先 pilot/design 两 commit（docs 07+README 修正+memory 日志）待用户确认推送。
+
 ## 教训 / 备忘
 
 - Chrome 136+：`--remote-debugging-port` 必须配非默认 `--user-data-dir`，且与人工会话互斥（SingletonLock）——账号池设计的硬约束
@@ -36,3 +38,4 @@
 - 云服务器场景：WireGuard 通的标志是安全组放行 UDP 51820，而非系统防火墙
 - Tailscale 授权链接当日有效，过期重跑 `tailscale up` 换新链接
 - **git add -A 事故（11-14）**：workspace 仓库 remote 是公开 fork，-A 把系统文件推上公开分支，force-push 清理后已用 .gitignore 配置层根治（用户原则：配置大于约定）；含凭据/内部信息的文件一律走 gitignore，不靠自觉
+- **CLI pairing（11-15）**：`openclaw cron` 等 CLI 报 "pairing required" = 设备身份 scope 不足；`openclaw devices approve <requestId>`（会走本地 fallback）后恢复，无需重启
