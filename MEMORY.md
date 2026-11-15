@@ -29,7 +29,7 @@
 
 **下一步**：W1——① jeecg 裁剪 ② 设备准入链路（Tailscale 节点身份 + devices.wg_pubkey 绑定；双通 SSH 已具备对 rog-x 的远程执行能力）。待用户答复：客户端形态、群聊规模、审计范围；阻塞项：GLaDOS 订阅链接（写入 /opt/clash/glados.url）未提供。
 
-**仓库巡检（11-15 起，常驻）**：cron `repo-watch`（`14,49 8-23 * * *` Asia/Shanghai，~45min）只读巡查 `juice094/JeecgBoot`——成员名单/分支 head/PR/新提交作者校验，基线与协议在 `projects/agent-collab-pilot/state/repo-watch.json`，告警直发 kimi-claw。已授权职责：分支合并评估+代码检查+文档整理（合并前须用户点头）。**当前协作者仅 juice094+Ym3699 两人，第三成员用户名待用户提供**。另：本地 master 领先 pilot/design 两 commit（docs 07+README 修正+memory 日志）待用户确认推送。
+**仓库巡检（11-15 起，常驻）**：**零 LLM 方案**——系统 crontab `*/20 8-23 * * *` 跑 `projects/agent-collab-pilot/scripts/repo-poll.sh`（bash+gh+jq 比对 成员/分支/PR/作者，只读）；有变更才注入数据并触发 openclaw cron `repo-watch-alert`（id 521d3f55-a789-49e4-baeb-c508ddf5b4ab，schedule 2月31日 永不自启）写简报投递 kimi-claw。基线/协议在 `projects/agent-collab-pilot/state/repo-watch.json`。已授权职责：分支合并评估+代码检查+文档整理（合并前须用户点头）。**当前协作者仅 juice094+Ym3699 两人，第三成员用户名待用户提供**。另：本地 master 领先 pilot/design 两 commit（docs 07+README 修正+memory 日志）待用户确认推送。**已知坑：k2d8 偶发 input=null 空 tool_call → 空 tool_result → LLM 400（11-14 session 损坏同因）；isolate agent 数据须内联 prompt + 重试兜底，勿依赖运行时修**。CLI 报 "pairing required" → `openclaw devices approve <requestId>`。
 
 ## 教训 / 备忘
 
