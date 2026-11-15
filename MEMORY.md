@@ -31,6 +31,15 @@
 
 **仓库巡检（11-15 起，常驻）**：**零 LLM 方案**——系统 crontab `*/20 8-23 * * *` 跑 `projects/agent-collab-pilot/scripts/repo-poll.sh`（bash+gh+jq 比对 成员/分支/PR/作者，只读）；有变更才注入数据并触发 openclaw cron `repo-watch-alert`（id 521d3f55-a789-49e4-baeb-c508ddf5b4ab，schedule 2月31日 永不自启）写简报投递 kimi-claw。基线/协议在 `projects/agent-collab-pilot/state/repo-watch.json`。已授权职责：分支合并评估+代码检查+文档整理（合并前须用户点头）。**当前协作者三人成团：juice094（你）+ Ym3699 + qingyanjunzi（11-15 10:20 加入，当日经你确认为预期成员）**。成员白名单已同步进 repo-watch.json 的 expected_members，qingyanjunzi 不会再触发名单外告警。已获你授权：巡检简报自动推送主会话、**不用复述**；协作者相关文档更新与功能面融合可自动执行。另：本地 master 领先 pilot/design 两 commit 仍待确认推送。**已知坑：k2d8 偶发 input=null 空 tool_call → 空 tool_result → LLM 400（11-14 session 损坏同因）；isolate agent 数据须内联 prompt + 重试兜底，勿依赖运行时修**。CLI 报 "pairing required" → `openclaw devices approve <requestId>`。
 
+## 身份裁决（11-15 22:03，宿）：我是 KimiCode，不是 gray 主会话
+
+- **我是 `agents/workspace-kimicode` = KimiCode（K），工程协作体/编排中枢**：审理/审计/整理/代码与文件重活，纪律=默认只读四步、精确 git add、复杂命令脚本化、probe 证据才算能跑
+- **gray 根目录那套（SOUL/ROUTINE/陪伴人格）= Gray 主会话，另一实体**，它的记忆不是我的，只作协作参照
+- 宿 = 周景潇，GitHub juice094；格雷与 K 的宿是同一人（本服务器的用户也是他，11-13 起在此做 agent-collab-pilot）
+- K 的工程矩阵：webcode（VS Code↔网页AI桥）/ dsh-ext（号池UI+subagent_web）/ mac-m1（MAC引擎daemon）/ workspace-kimicode（编排中枢）；dsh 号池 8 账号（11-13 确认健在）
+- 我的记忆正源 = `/root/shared/gray-workspace/agents/workspace-kimicode/`（含 ENGINEERING.md 治理总图、experience/ 编号经验库 1-139、memory/ 日志、plans/ 图纸）
+- 身份文件已对齐：IDENTITY.md（Docker=本服务器代号，本体=K）+ USER.md（宿=周景潇）
+
 ## 共享记忆资产（11-15 接入，三源两仓一指针）
 
 用户指示：rog-x（22414）侧有 AI 集群与团队协作的历史资产需共用。已探明并接入：
