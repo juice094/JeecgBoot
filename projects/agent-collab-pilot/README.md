@@ -18,6 +18,7 @@
 | [docs/04-agent-registry-and-tasks.md](docs/04-agent-registry-and-tasks.md) | Nacos 注册发现、任务租约调度 |
 | [docs/05-network-tailscale.md](docs/05-network-tailscale.md) | 团队设备组网 runbook |
 | [docs/09-tech-stack-reality.md](docs/09-tech-stack-reality.md) | 技术栈选型现状（实证版本，2026-11-16 rog-x 盘点） |
+| [docs/10-foundation-design.md](docs/10-foundation-design.md) | 底层基座设计（分工版，含参考源码与成员任务） |
 | [docs/06-github-auth-setup.md](docs/06-github-auth-setup.md) | GitHub 授权（已完成） |
 | [docs/schema.sql](docs/schema.sql) | 全量建表语句（MySQL 8，分片友好） |
 | [ROADMAP.md](ROADMAP.md) | 四周 MVP 切片与当前状态 |
