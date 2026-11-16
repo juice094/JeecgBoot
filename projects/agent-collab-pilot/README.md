@@ -20,6 +20,7 @@
 | [docs/09-tech-stack-reality.md](docs/09-tech-stack-reality.md) | 技术栈选型现状（实证版本，2026-11-16 rog-x 盘点） |
 | [docs/10-foundation-design.md](docs/10-foundation-design.md) | 底层基座设计（分工版，含参考源码与成员任务） |
 | [docs/11-direction-pivot-2026-11-16.md](docs/11-direction-pivot-2026-11-16.md) | **方向调整存档**：基础功能为主，池号线封存（技术总监指示） |
+| [docs/12-tailscale-invite-runbook.md](docs/12-tailscale-invite-runbook.md) | 成员邀请进 tailnet + 云 VM 接口文档访问 runbook |
 | [docs/06-github-auth-setup.md](docs/06-github-auth-setup.md) | GitHub 授权（已完成） |
 | [docs/schema.sql](docs/schema.sql) | 全量建表语句（MySQL 8，分片友好） |
 | [ROADMAP.md](ROADMAP.md) | 四周 MVP 切片与当前状态 |
