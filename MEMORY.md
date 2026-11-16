@@ -68,6 +68,23 @@
 - **docker jeecg-boot-system 已停**（8080 让给 nginx 反代）；vue 前端容器仍在 80
 - **运维注意**：`nohup` 保活长 apt（会话 SIGKILL 频发）；rog-x 侧并发推送多，push 前先 fetch+rebase
 
+### 巡检假告警修复（16:40-16:55，3 个连环 bug）
+
+repo-poll.sh 今天 16:00/16:20 连续假告警「未收到预计算变更 JSON」。挖到底四个 bug 叠加：
+1. **`gh api since` 参数 `+` 未 URL 编码** → GitHub 当空格 → 返回 **200 空数组**（不报错！）→ 变更窗口被静默吞掉
+2. **`--argjson b "[$cs[] | . + {branch: \"$b\"}]"`** → shell 双引号里嵌 jq 程序代码，拼出 `[[]` 非法 JSON → $report 被赋空 → 注入空消息
+3. **edit 工具的 $ 转义坑**：脚本里 `"$@"` 被写成 `"@"`（$ 被吞）→ 字面 `@: command not found`
+4. **verify 读错路径**：`.message` 应为 `.payload.message`（jobs.json 结构）→ 回读永远空 → 误杀
+
+修复后 16:50 端到端验证通过：`ALERT triggered` → run status=ok → delivered=True → 简报含真实变更。修复 commit `a66b91c4` 已推。
+
+**教训**：
+- gh api 的查询参数含 `+` 必须 `%2B`（200 空数组是最阴险的故障形态）
+- --argjson 的值必须是纯 JSON，不能混 jq 程序语法
+- edit 工具写 shell 脚本含 `$` 变量后必须 `bash -n` + 手动跑一次验证（这次 \"&  $@ 两个坑同因）
+- openclaw cron 的 jobs.json 结构：message 在 `payload.message`，不在顶层
+- git identity 已设 juice094 / juice094@users.noreply.github.com（此前 root@localhost 触发 unknown_author 告警）
+
 ## 教训 / 备忘
 
 - Chrome 136+：`--remote-debugging-port` 必须配非默认 `--user-data-dir`，且与人工会话互斥（SingletonLock）——账号池设计的硬约束
