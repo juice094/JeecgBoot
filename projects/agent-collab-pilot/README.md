@@ -1,7 +1,8 @@
 # Agent Collab Pilot — AI 集群团队协作效率工具（试点）
 
-> 阶段：架构设计冻结，待进入 W1 实施（2026-11-14）
-> 部署目标机：本机（云虚拟机 VM-14-0-ubuntu，即中心代理节点）
+> 阶段：架构设计冻结，W1 实施中（2026-11-16 起开发主阵地移至 rog-x/Win11，云 VM 为对侧节点）
+> 部署目标机：rog-x（Win11，开发机）+ VM-14-0-ubuntu（云，对侧节点）
+> 定位：不是"试点玩具"，而是完成一套成熟的微服务体系模块（控制面/数据面/执行面），"试点"仅指协作规模
 
 ## 一句话定义
 
@@ -16,6 +17,7 @@
 | [docs/03-im-chat-and-sync.md](docs/03-im-chat-and-sync.md) | 消息模型、多端同步协议、合规审计 |
 | [docs/04-agent-registry-and-tasks.md](docs/04-agent-registry-and-tasks.md) | Nacos 注册发现、任务租约调度 |
 | [docs/05-network-tailscale.md](docs/05-network-tailscale.md) | 团队设备组网 runbook |
+| [docs/09-tech-stack-reality.md](docs/09-tech-stack-reality.md) | 技术栈选型现状（实证版本，2026-11-16 rog-x 盘点） |
 | [docs/06-github-auth-setup.md](docs/06-github-auth-setup.md) | GitHub 授权（已完成） |
 | [docs/schema.sql](docs/schema.sql) | 全量建表语句（MySQL 8，分片友好） |
 | [ROADMAP.md](ROADMAP.md) | 四周 MVP 切片与当前状态 |
