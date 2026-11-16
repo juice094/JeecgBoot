@@ -2,12 +2,21 @@
 import { computed } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import {
-  PhChatTeardropText,
-  PhKanban,
-  PhNotePencil,
-  PhBuildings,
-  PhUsers,
   PhSquaresFour,
+  PhUsersThree,
+  PhBuildings,
+  PhBooks,
+  PhPackage,
+  PhMegaphone,
+  PhBriefcase,
+  PhStudent,
+  PhNotePencil,
+  PhCheckSquareOffset,
+  PhEnvelopeSimple,
+  PhFolderOpen,
+  PhBug,
+  PhChartBar,
+  PhChatTeardropText,
   PhWrench,
   PhCaretLeft,
   PhCaretRight,
@@ -24,6 +33,7 @@ interface MenuChild {
   path: string;
   owner: string;
   icon: string;
+  badge?: number;
 }
 
 interface MenuGroup {
@@ -33,11 +43,20 @@ interface MenuGroup {
 
 /** 路由 meta.icon → Phosphor 图标组件（唯一权威在 router/index.ts） */
 const MENU_ICONS: Record<string, FunctionalComponent> = {
-  chat: PhChatTeardropText,
-  kanban: PhKanban,
-  form: PhNotePencil,
-  org: PhBuildings,
-  members: PhUsers,
+  dashboard: PhSquaresFour,
+  hr: PhUsersThree,
+  assets: PhBuildings,
+  academic: PhBooks,
+  repair: PhPackage,
+  marketing: PhMegaphone,
+  vocational: PhBriefcase,
+  student: PhStudent,
+  request: PhNotePencil,
+  approval: PhCheckSquareOffset,
+  email: PhEnvelopeSimple,
+  resource: PhFolderOpen,
+  bug: PhBug,
+  report: PhChartBar,
 };
 
 // 侧栏从路由派生，禁止在这里硬编码菜单项（docs/13 §二.5，issue #11）
@@ -45,7 +64,7 @@ const menus = computed<MenuGroup[]>(() => {
   const children = router.options.routes.find((r) => r.path === '/')?.children ?? [];
   const groups = new Map<string, MenuChild[]>();
   for (const child of children) {
-    const meta = child.meta as { title?: string; owner?: string; group?: string; icon?: string } | undefined;
+    const meta = child.meta as { title?: string; owner?: string; group?: string; icon?: string; badge?: number } | undefined;
     if (!meta?.group || !child.path) continue;
     if (!groups.has(meta.group)) groups.set(meta.group, []);
     groups.get(meta.group)!.push({
@@ -53,6 +72,7 @@ const menus = computed<MenuGroup[]>(() => {
       path: `/${child.path}`,
       owner: meta.owner ?? '',
       icon: meta.icon ?? '',
+      badge: meta.badge,
     });
   }
   return [...groups.entries()].map(([title, items]) => ({ title, children: items }));
@@ -88,6 +108,7 @@ function switchMode(mode: 'tool' | 'chat') {
         >
           <component :is="MENU_ICONS[item.icon] ?? PhSquaresFour" :size="18" class="menu-item__icon" />
           <span v-if="!workbench.sidebarCollapsed" class="menu-item__text">{{ item.title }}</span>
+          <span v-if="item.badge && !workbench.sidebarCollapsed" class="menu-badge">{{ item.badge }}</span>
         </router-link>
       </div>
     </nav>
@@ -243,6 +264,19 @@ function switchMode(mode: 'tool' | 'chat') {
 
 .menu-item--slim::before {
   left: 0;
+}
+
+/* 菜单角标（原型 .badge：审批中心 34 / 工作邮箱 3，接口就绪后接真实计数） */
+.menu-badge {
+  margin-left: auto;
+  background: var(--danger);
+  color: #fff;
+  font-size: var(--font-size-sm);
+  padding: 0 6px;
+  height: 18px;
+  line-height: 18px;
+  border-radius: 9px;
+  font-weight: normal;
 }
 
 .sidebar__spacer {
