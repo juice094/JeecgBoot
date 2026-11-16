@@ -19,7 +19,7 @@ gh_fetch() {
   local desc="$1"; shift
   local out
   for attempt in 1 2 3; do
-    if out=$("@" 2>>"$LOG"); then
+    if out=$("$@" 2>>"$LOG"); then
       printf '%s' "$out"
       return 0
     fi
@@ -124,7 +124,7 @@ MSGEOF
 if command -v openclaw > /dev/null 2>&1; then
   if openclaw cron edit "$ALERT_JOB_ID" --message "$(cat "$msgfile")" > /dev/null 2>>"$LOG"; then
     # 回读验证：确认 message 真含变更 JSON 再触发，杜绝空消息假告警（11-16 两次假告警根因）
-    verify=$(openclaw cron list --json 2>/dev/null | jq -r --arg id "$ALERT_JOB_ID" '(.jobs // .)[] | select(.id == $id) | .message // ""')
+    verify=$(openclaw cron list --json 2>/dev/null | jq -r --arg id "$ALERT_JOB_ID" '(.jobs // .)[] | select(.id == $id) | .payload.message // ""')
     if printf '%s' "$verify" | grep -q '"changes"'; then
       openclaw cron run "$ALERT_JOB_ID" > /dev/null 2>>"$LOG" \
         && log "ALERT triggered" \
