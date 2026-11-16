@@ -87,12 +87,17 @@ unknown_authors="[]"
 commits_summary="[]"
 for b in $(jq -r '.changes.moved_branches[].name, .changes.new_branches[].name' <<<"$report"); do
   since=$(jq -r '.last_check // empty' "$STATE")
+  # URL编码 + 号（GitHub 把裸 + 当空格→since解析失败返回200空数组，静默吞掉变更窗口）
+  since_enc=${since//+/%2B}
   args=(api "repos/$REPO/commits?sha=$b&per_page=10")
-  [ -n "$since" ] && args=(api "repos/$REPO/commits?sha=$b&since=$since&per_page=10")
-  cs=$(gh "${args[@]}" --jq '[.[] | {sha: .sha[0:7], author: (.author.login // "unknown"), message: (.commit.message | split("\n")[0])}]' 2>>"$LOG") || continue
-  unknown=$(jq --argjson exp "$expected_json" '[.[] | select(.author as $a | ($exp | index($a)) == null)]' <<<"$cs")
+  [ -n "$since" ] && args=(api "repos/$REPO/commits?sha=$b&since=$since_enc&per_page=10")
+  cs=$(gh "${args[@]}" --jq '[.[] | {sha: .sha[0:7], author: (.author.login // "unknown"), message: (.commit.message | split("
+")[0])}]' 2>>"$LOG") || continue
+  # cs 必须是 JSON 数组；gh 200空响应/异常输出时跳过，避免污染下游 --argjson
+  case "$cs" in '['*']') ;; *) log "WARN: commits non-JSON for $b: ${cs:0:80}"; continue;; esac
+  unknown=$(jq -n --argjson exp "$expected_json" --argjson cs "$cs" '[ $cs[] | select(.author as $a | ($exp | index($a)) == null) ]')
   unknown_authors=$(jq -n --argjson a "$unknown_authors" --argjson b "$unknown" '$a + $b | unique')
-  commits_summary=$(jq -n --argjson a "$commits_summary" --argjson b "[$cs[] | . + {branch: \"$b\"}]" '$a + $b')
+  commits_summary=$(jq -n --argjson a "$commits_summary" --argjson cs "$cs" --arg br "$b" '[ $a[], ($cs[] | . + {branch: $br}) ]')
 done
 
 report=$(jq -n --argjson r "$report" --argjson ua "$unknown_authors" --argjson cs "$commits_summary" '
