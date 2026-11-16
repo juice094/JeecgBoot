@@ -4,6 +4,7 @@
 // 后端：轻量状态机审批（issue 待建，Flyway/team_approval 骨架由 Kimi Code 先行）
 import { reactive, ref } from 'vue';
 import { PhUploadSimple, PhInfo } from '@phosphor-icons/vue';
+import { submitApproval } from '@/api/team';
 
 const categories = [
   { group: '考勤与假期', items: ['请假申请', '出差申请', '外出申请', '补卡申请', '加班申请'] },
@@ -11,19 +12,39 @@ const categories = [
 ];
 const activeCategory = ref('加班申请');
 
-const form = reactive({ title: '关于国庆期间迎新筹备加班申请', reason: '', start: '', end: '' });
+const form = reactive({ title: '', reason: '', start: '', end: '' });
 const titleError = ref(false);
+const submitting = ref(false);
+const submitMsg = ref('');
 
 const flowSteps = [
-  { name: '贺致远', role: '部门主管 · 教学总监' },
-  { name: '黄茜茜', role: '常务副总经理' },
-  { name: '王立柱', role: '总经理' },
+  { name: '部门主管', role: '一级审批' },
+  { name: '分管副总', role: '二级审批' },
 ];
 
-function submit() {
+async function submit() {
   titleError.value = !form.title.trim();
-  if (titleError.value) return;
-  // TODO: POST /team/approval/add（后端骨架就绪后对接）
+  submitMsg.value = '';
+  if (titleError.value || submitting.value) return;
+  submitting.value = true;
+  try {
+    await submitApproval({
+      category: activeCategory.value,
+      title: form.title.trim(),
+      reason: form.reason.trim() || undefined,
+      startDate: form.start || undefined,
+      endDate: form.end || undefined,
+    });
+    submitMsg.value = '已提交，进入审批流（可在审批中心跟进）';
+    form.title = '';
+    form.reason = '';
+    form.start = '';
+    form.end = '';
+  } catch (e: any) {
+    submitMsg.value = e.message || '提交失败';
+  } finally {
+    submitting.value = false;
+  }
 }
 </script>
 
@@ -77,8 +98,9 @@ function submit() {
         </div>
       </div>
       <div class="form-footer">
-        <button class="btn btn-default">清空</button>
-        <button class="btn btn-primary" @click="submit">提交申请</button>
+        <button class="btn btn-default" @click="form.title = ''; form.reason = ''; form.start = ''; form.end = ''; submitMsg = ''">清空</button>
+        <span v-if="submitMsg" class="submit-msg">{{ submitMsg }}</span>
+        <button class="btn btn-primary" :disabled="submitting" @click="submit">{{ submitting ? '提交中…' : '提交申请' }}</button>
       </div>
     </div>
 
@@ -138,6 +160,11 @@ function submit() {
 .form-area {
   padding: 24px;
   overflow-y: auto;
+}
+.submit-msg {
+  margin-right: auto;
+  font-size: var(--font-size-sm);
+  color: var(--success);
 }
 .form-header {
   margin-bottom: 24px;
