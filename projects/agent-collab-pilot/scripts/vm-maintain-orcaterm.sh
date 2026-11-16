@@ -1,12 +1,17 @@
 #!/usr/bin/env bash
 # vm-maintain-orcaterm.sh — 云 VM 维护一体脚本（OrcaTerm 粘贴执行）
-# A. 恢复 claw 会话  B. 放行 rog-x 运维密钥(SSH)  C. 接口文档自动更新  D. 日志轮转
+# A. claw gateway 健康检查(异常才重启)  B. 放行 rog-x 运维密钥(SSH)  C. 接口文档自动更新  D. 日志轮转
 set -uo pipefail
 
-echo '=== A. claw gateway 重启与状态 ==='
-systemctl --user restart openclaw-gateway 2>&1
-sleep 8
-systemctl --user is-active openclaw-gateway
+echo '=== A. claw gateway 健康检查（探针通过则跳过重启，避免消息黑洞） ==='
+if systemctl --user is-active --quiet openclaw-gateway && curl -sf -o /dev/null http://127.0.0.1:18789/; then
+  echo 'gateway active + http探针200 → 跳过重启'
+else
+  echo 'gateway 异常 → 重启恢复'
+  systemctl --user restart openclaw-gateway 2>&1
+  sleep 8
+  systemctl --user is-active openclaw-gateway
+fi
 LOG=$(ls -t /tmp/openclaw/*.log /root/.openclaw/logs/*.log 2>/dev/null | head -1)
 echo "log=$LOG"
 tail -n 120 "$LOG" 2>/dev/null | grep -iE 'im|recv|inbound|error|pair|bind' | tail -20
