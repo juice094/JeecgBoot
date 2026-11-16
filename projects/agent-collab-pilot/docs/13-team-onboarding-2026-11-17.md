@@ -22,7 +22,7 @@
 **横切规矩（三人共同遵守）**
 
 1. 模块目录 = 职责边界，只改自己目录与路由表中自己那段；跨模块需求开 issue。
-2. 菜单/路由/owner **单一来源**：`src/router/index.ts` 为唯一权威，侧栏从 router 派生（禁止第二份硬编码，Kimi Code 收口项 #3）。
+2. 菜单/路由/owner **单一来源**：`src/router/index.ts` 为唯一权威，侧栏从 router 派生（禁止第二份硬编码，Kimi Code 收口项 #11）。
 3. 业务枚举走 jeecg 字典或 `src/constants/`，禁止字面量散在组件里。
 4. issue 即合同：改接口必须同步 Knife4j 注解，PR 描述带「文档影响」。
 5. 环境魔法值（端口、token 键名、超时）收常量区，见 §五端口矩阵。
@@ -44,12 +44,12 @@
 
 | issue | 事项 | 产物 |
 |---|---|---|
-| #6 | IM 路线执行口径落地 | 本文档 + message README 修订 |
-| #7 | 后端 pilot 业务模块骨架：tasks DDL（Flyway）+ jeecg 规范模块 + Knife4j 注解，跑通纵线 | 可运行 PR |
-| #8 | 前端公共层收口：菜单单一来源、http 契约修正、设计令牌阶梯 | 前端 commit |
-| #9 | 云 VM 布局收敛：角色声明、布局取舍、端口矩阵、prune 执行 | 文档 + VM 操作 |
-| #10 | 联调基准声明（dev 代理=本机 8081，VM 8080 仅文档合同） | README 段落 |
-| #11 | 仓库协作规范：issue/PR 模板、分支保护建议 | .github/ 模板 |
+| #9 | IM 路线执行口径落地 | 本文档 + message README 修订 |
+| #10 | 后端 pilot 业务模块骨架：tasks DDL（Flyway）+ jeecg 规范模块 + Knife4j 注解，跑通纵线 | 可运行 PR |
+| #11 | 前端公共层收口：菜单单一来源、http 契约修正、设计令牌阶梯 | 前端 commit |
+| #7 | 云 VM 布局收敛：角色声明、布局取舍、端口矩阵、prune 执行 | 文档 + VM 操作 |
+| #12 | 联调基准声明（dev 代理=本机 8081，VM 8080 仅文档合同） | README 段落 |
+| #8 | 仓库协作规范：issue/PR 模板、分支保护建议 | .github/ 模板 |
 
 ## 五、联调基线与端口矩阵
 
