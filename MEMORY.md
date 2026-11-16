@@ -50,6 +50,14 @@
 
 **与 pilot 的关键差异待对齐**：MAC 用"编排器+进程隔离"（Windows 优先），我们 pilot 冻结的是"一账号一容器"（debian+xvfb+x11vnc+chromium）；MAC 多出的"固定代理出口/指纹卫生/数美采集面 RE 结论"经验需并入浏览器池设计。下次涉及浏览器池设计时先读 `/root/shared/gray-workspace/agents/workspace-kimicode/plans/multi-account-browser/p3-kernel-design-input-2026-11-02.md`
 
+## 11-16 进展（GLaDOS 解阻塞 + jeecg 裁剪启动 + 报告交付）
+
+- **GLaDOS 订阅获取**：从 rog-x Verge `profiles.yaml` 直取 URL 写入 `/opt/clash/glados.url`（chmod 600），mihomo 33 节点/5 策略组生效（google 204 / glados 200 实测）。订阅 expire 2027-12-19，余量 ~170 GiB。经验：GLaDOS 用量可免登录 HEAD 订阅 URL 读 subscription-userinfo 头
+- **jeecg 单体版确认不注册 Nacos**（配置零 discovery）——"Nacos 服务下线裁剪"改为 RBAC 菜单层实现：sys_permission 禁用 8 项（低代码/可视化/报表/AI平台/监控/组件/导航/关于），保留主页/系统管理/我的租户/消息中心，随时可恢复
+- **pilot 全量 11 表落库** jeecg-boot 库（schema.sql 一次执行成功）
+- **工作报告整合交付**：`projects/agent-collab-pilot/reports/工作报告-2026-11-16.md`（六章+附录），已推 GitHub `juice094/JeecgBoot` pilot/design 分支（commit 26a2904e，含 master 领先的 identity/docs08/poc 三 commit 一并同步）
+- **待拍板**：WSS 网关技术栈 A=Java融jeecg(推荐)/B=独立Node；客户端形态；群聊规模；AI 消息审计范围
+
 ## 教训 / 备忘
 
 - Chrome 136+：`--remote-debugging-port` 必须配非默认 `--user-data-dir`，且与人工会话互斥（SingletonLock）——账号池设计的硬约束
