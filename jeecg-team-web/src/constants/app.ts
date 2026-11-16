@@ -11,3 +11,6 @@ export const REQUEST_TIMEOUT_MS = 15000;
 
 /** jeecg-boot 统一响应包装的成功码（与后端 Result<T> 约定一致） */
 export const RESULT_SUCCESS_CODE = 200;
+
+/** localStorage 键名：上次打开的工具模式页面（双模式"回到上次页面"用） */
+export const WORKBENCH_LAST_PATH_KEY = 'team_last_tool_path';

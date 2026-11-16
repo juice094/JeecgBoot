@@ -81,9 +81,11 @@ const menus = computed<MenuGroup[]>(() => {
 const isActive = (path: string) => route.path === path;
 
 function switchMode(mode: 'tool' | 'chat') {
-  workbench.setMode(mode);
   if (mode === 'chat') {
     router.push('/message');
+  } else if (route.path === '/message') {
+    // 从会话切回工具：回到上次打开的页面
+    router.push(workbench.lastToolPath || '/dashboard');
   }
 }
 </script>
@@ -112,14 +114,12 @@ function switchMode(mode: 'tool' | 'chat') {
         </router-link>
       </div>
     </nav>
-    <div v-show="workbench.mode === 'tool'" class="sidebar__spacer" />
 
     <!-- 会话模式：侧栏仅保留头部与底栏，主区域由会话工作台占满 -->
     <div v-show="workbench.mode === 'chat'" class="sidebar__chat-hint">
       <PhChatTeardropText :size="22" />
       <span v-if="!workbench.sidebarCollapsed">会话工作台</span>
     </div>
-    <div v-show="workbench.mode === 'chat'" class="sidebar__spacer" />
 
     <!-- 底栏：模式切换（收起按钮边上）+ 收起/展开 -->
     <div class="sidebar__footer">
@@ -279,13 +279,10 @@ function switchMode(mode: 'tool' | 'chat') {
   font-weight: normal;
 }
 
-.sidebar__spacer {
-  flex: 1;
-}
-
 .sidebar__chat-hint {
+  flex: 1;
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   gap: 10px;
   padding: 18px 20px;
   color: var(--primary);

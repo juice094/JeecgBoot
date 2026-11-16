@@ -1,11 +1,29 @@
 <script setup lang="ts">
-import { computed } from 'vue';
+import { computed, watch } from 'vue';
+import { useRoute } from 'vue-router';
 import SidebarMenu from './SidebarMenu.vue';
 import TopHeader from './TopHeader.vue';
 import ChatWorkbench from '@/modules/message/views/ChatWorkbench.vue';
 import { useWorkbenchStore } from '@/stores/workbench';
 
+const route = useRoute();
 const workbench = useWorkbenchStore();
+
+// 模式与路由单向派生：/message 永远渲染为会话布局（chat 分支），
+// 工具页渲染为 page-fade 分支——聊天只有一种布局，不存在第二条渲染路径
+watch(
+  () => route.path,
+  (path) => {
+    if (path === '/message') {
+      workbench.setMode('chat');
+    } else {
+      workbench.setMode('tool');
+      workbench.rememberToolPath(path);
+    }
+  },
+  { immediate: true }
+);
+
 const isChatMode = computed(() => workbench.mode === 'chat');
 </script>
 

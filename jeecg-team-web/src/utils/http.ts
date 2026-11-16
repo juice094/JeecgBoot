@@ -3,11 +3,15 @@ import { REQUEST_TIMEOUT_MS, RESULT_SUCCESS_CODE, TOKEN_STORAGE_KEY } from '@/co
 
 /**
  * 统一 HTTP 出口。
- * baseURL 指向 jeecg-boot 后端（vite 代理到 8081，见 vite.config.ts）。
- * 后端响应统一包 Result<T>：{ code, message, result }，成功码约定见 constants/app.ts 的 RESULT_SUCCESS_CODE。
+ * baseURL 分两种运行形态：
+ * - Web（vite dev/build）：同源相对路径 /jeecg-boot，由 vite 代理到本机 8081（见 vite.config.ts）
+ * - Tauri 桌面壳：无代理，直连本机后端绝对地址（CORS 需在 jeecg 侧放行 tauri 源，见 docs/16 后续）
+ * 后端响应统一包 Result<T>：{ code, message, result }，成功码约定见 RESULT_SUCCESS_CODE。
  */
+const isTauri = typeof window !== 'undefined' && '__TAURI_INTERNALS__' in window;
+
 const http = axios.create({
-  baseURL: '/jeecg-boot',
+  baseURL: isTauri ? 'http://127.0.0.1:8081/jeecg-boot' : '/jeecg-boot',
   timeout: REQUEST_TIMEOUT_MS,
 });
 
