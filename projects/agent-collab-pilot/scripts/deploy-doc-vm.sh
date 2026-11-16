@@ -25,11 +25,11 @@ java_ver=$(java -version 2>&1 | head -1 | grep -oE '[0-9]+' | head -1 || true)
 [ "${java_ver:-0}" -ge 17 ] || die "需要 JDK 17+，当前: $(java -version 2>&1 | head -1)"
 say "JDK OK: $(java -version 2>&1 | head -1)"
 
-# --- 1. 端口 8080 须空闲（本机 nacos 用 8848/9848/18080，8080 应空闲） ---
-if ss -tlnp | grep -q ':8080 '; then
-  die "8080 已被占用：$(ss -tlnp | grep ':8080 ' | head -1)"
+# --- 1. 端口 8081 须空闲（8080 由 nginx 反代常驻；jar 绑回环 8081） ---
+if ss -tlnp | grep -q ':8081 '; then
+  die "8081 已被占用：$(ss -tlnp | grep ':8081 ' | head -1)（jeecg-doc 已在跑？先 systemctl stop jeecg-doc）"
 fi
-say "8080 空闲"
+say "8081 空闲（8080=nginx 反代）"
 
 # --- 2. jeecg-boot 库存在与否，缺则导入 ---
 if ! mysql -h"$DB_HOST" -P"$DB_PORT" -uroot -proot -N -e "SELECT 1 FROM information_schema.tables WHERE table_schema='jeecg-boot' LIMIT 1" 2>/dev/null | grep -q 1; then
@@ -76,6 +76,38 @@ fi
 # shellcheck disable=SC1090
 . "$ENV_FILE"
 
+# --- 5b. nginx 反代 + basic auth（knife4j UI 包无 starter，knife4j.basic.* 无消费者；
+#     basic auth 由 nginx 承担；jar 绑回环 8081 防 tailnet 直连绕过） ---
+NGINX_SITE=/etc/nginx/sites-available/jeecg-doc
+HTPASSWD=/etc/nginx/.htpasswd-jeecg-doc
+if ! command -v nginx >/dev/null 2>&1; then
+  say "安装 nginx（经 Clash 代理换公网源）..."
+  sed -i 's|http://mirrors.tencentyun.com/ubuntu/|http://archive.ubuntu.com/ubuntu/|' /etc/apt/sources.list.d/ubuntu.sources 2>/dev/null || true
+  apt-get -o Acquire::http::Proxy=http://127.0.0.1:7890 -qq update
+  apt-get -o Acquire::http::Proxy=http://127.0.0.1:7890 -y -qq install nginx
+fi
+printf "%s:%s\n" "$DOC_USER" "$(openssl passwd -apr1 "$DOC_PASS")" > "$HTPASSWD"
+chown root:www-data "$HTPASSWD" && chmod 640 "$HTPASSWD"
+rm -f /etc/nginx/sites-enabled/default
+cat > "$NGINX_SITE" <<'NGINX'
+server {
+    listen 8080 default_server;
+    server_name _;
+    auth_basic "JeecgBoot API Doc (team)";
+    auth_basic_user_file /etc/nginx/.htpasswd-jeecg-doc;
+    location / {
+        proxy_pass http://127.0.0.1:8081;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_read_timeout 120s;
+    }
+}
+NGINX
+ln -sf "$NGINX_SITE" /etc/nginx/sites-enabled/jeecg-doc
+nginx -t && systemctl enable --now nginx
+say "nginx 反代就绪: 8080(basic auth) → 127.0.0.1:8081"
+
 # --- 6. systemd 单元 ---
 cat > "$UNIT" <<EOF
 [Unit]
@@ -89,12 +121,11 @@ EnvironmentFile=$ENV_FILE
 WorkingDirectory=$BASE
 ExecStart=$(which java) -Xms256m -Xmx512m -jar $JAR_FILE \
   --spring.profiles.active=dev \
-  --server.port=8080 \
+  --server.address=127.0.0.1 --server.port=8081 \
   --spring.datasource.dynamic.datasource.master.url=jdbc:mysql://$DB_HOST:$DB_PORT/jeecg-boot?characterEncoding=UTF-8&useUnicode=true&useSSL=false&tinyInt1isBit=false&allowPublicKeyRetrieval=true&serverTimezone=Asia/Shanghai \
   --spring.datasource.dynamic.datasource.master.username=root \
   --spring.datasource.dynamic.datasource.master.password=root \
   --spring.data.redis.host=127.0.0.1 --spring.data.redis.port=6379 \
-  --knife4j.basic.enable=true --knife4j.basic.username=\$DOC_USER --knife4j.basic.password=\$DOC_PASS \
   --jeecg.firewall.enableLoginCaptcha=false
 Restart=on-failure
 RestartSec=10
