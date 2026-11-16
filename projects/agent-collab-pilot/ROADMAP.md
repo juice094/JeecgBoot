@@ -1,37 +1,43 @@
-# ROADMAP — 四周 MVP 切片
+# ROADMAP — 团队协作效率工具（正向道路）
 
-## W1：底座与准入
-- [ ] jeecg 裁剪（砍 online/报表/大屏，保留 RBAC）
-- [ ] devices / device_sessions 建表 + 设备准入链路（注册→批准→WSS 握手签发 token）
-- [ ] WSS 网关骨架（connect/auth/sync/pull/ack 帧）
-- [ ] Tailscale 组网：服务器浏览器授权登录 + 成员加入（runbook：docs/05）
+> 2026-11-16 方向调整后的里程碑（依据 docs/11，技术总监指示）。
+> 产品主线 = 基础团队协作功能；原 AI 协作/账号池线整体封存，见文末。
 
-## W2：消息通路
-- [ ] 消息模型落地（写扩散 + inbox + Redis 发号）
-- [ ] 单聊/群聊收发、离线补拉、已读回执
-- [ ] 撤回/删除语义
+## M1：底座裁剪与团队接入（1-2 周）
+- [ ] jeecg 裁剪（砍 online/报表/大屏，保留 RBAC + 系统管理）
+- [ ] 云 VM 常驻接口文档实例（脚本已备：scripts/deploy-doc-vm.sh）
+- [ ] 成员进 tailnet + Mattermost 频道开通（吃狗粮：项目沟通搬进自己的 IM）
+- [ ] 仓库整理：分支约定、issue 任务板、标签
 
-## W3：客户端
-- [ ] SQLCipher 本地库 + 审计规则引擎（关键词/正则/模式）
-- [ ] 审计 HMAC 随消息上云，服务器验签
-- [ ] 双面板切换 UI（工具工作台 ⇄ 聊天工作台）
+## M2：协作通路（2-3 周）
+- [ ] Mattermost 部署验收（单聊/群聊/语音消息/文件传输）
+- [ ] OnlyOffice 部署 + 文档协同验收（多人实时编辑/版本历史）
+- [ ] SSO 统一登录：一套账号通 JeecgBoot / Mattermost / OnlyOffice
+- [ ] MinIO 替换 jeecg 本地上传 + KKFileView 在线预览
 
-## W4：Agent 闭环
-- [ ] Nacos 注册（worker 临时实例 + capabilities metadata）
-- [ ] agent_tasks 租约抢占 + 清扫器
-- [ ] 浏览器池注册为首个 kind=browser-pool agent
-- [ ] 跑通：聊天工作台 @AI账号 → 调度 → CDP 执行 → 回复回流会话
+## M3：业务基础功能（3-4 周）
+- [ ] 任务协作模块（任务/看板/指派/截止提醒）
+- [ ] 日程与公告模块（团队日历/公告通知）
+- [ ] 审批流（轻量状态机：请假/报销模板）
+- [ ] 审计日志（操作审计 + 关键动作留痕）
 
-## 已完成（2026-11-13 ~ 11-14）
-- [x] 架构设计冻结（docs/01–04）
-- [x] 组网方案与 runbook（docs/05）
-- [x] GitHub 授权：juice094（docs/06）
-- [x] 全量建表语句（docs/schema.sql）
-- [x] 内部运维文档沉淀（docker/jeecg/mycat2/nacos/clash 踩坑记录，留在工作区未入库）
-- [x] 排除规则落配置（.gitignore，配置优先于约定）
+## M4：打磨与后置项（按需）
+- [ ] 音视频会议（Jitsi 或 Mattermost Calls）
+- [ ] 移动端适配（Mattermost 官方 App + jeecg H5）
+- [ ] 消息通知打通（IM  bot 推送构建/任务提醒）
 
-## 待确认的决策（阻塞 W1 末/W3）
-1. 客户端形态：桌面端（Tauri/Electron，倾向）vs 纯 Web
-2. 群聊规模与消息量级预期
-3. AI 会话消息是否全部过合规审计（倾向：是，gate 在路由进账号池之前）
-4. [x] ~~本仓库推送目标~~ → 已定：juice094/JeecgBoot（jeecgboot 公开 fork），设计文档推至 `pilot/design` 分支（59914fb），W1 代码分支从上游 main 切
+---
+
+## 研究线封存（不作为产品设计，未经重新拍板不得重启）
+
+原 W1：设备准入 + WSS 网关 —— 降级研究线
+原 W2：自研消息通路 —— 由 Mattermost 替代，封存
+原 W3：SQLCipher 客户端 + 合规审计引擎 —— 合规审计降级为 M3 操作审计，其余封存
+原 W4：Agent 闭环（Nacos 调度/浏览器池/AI 会话采集）—— 整体封存
+
+封存文档：docs/02（账号池）、docs/04（agent 调度）、docs/08（会话采集）。封存原因与解封条件见 docs/11。
+
+## 已完成（2026-11-13 ~ 11-16，方向调整前）
+- [x] 架构设计（docs/01-04）、组网 runbook（docs/05）、技术栈实证（docs/09）、基座设计（docs/10）
+- [x] agent_collab 库 11 表落地（本机/对侧）、GitHub 授权、对侧运维修复、repo-poll 哨兵
+- [x] 方向调整文档（docs/11）、本 ROADMAP 重写

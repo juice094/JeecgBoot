@@ -2,7 +2,7 @@
 
 > 阶段：架构设计冻结，W1 实施中（2026-11-16 起开发主阵地移至 rog-x/Win11，云 VM 为对侧节点）
 > 部署目标机：rog-x（Win11，开发机）+ VM-14-0-ubuntu（云，对侧节点）
-> 定位：不是"试点玩具"，而是完成一套成熟的微服务体系模块（控制面/数据面/执行面），"试点"仅指协作规模
+> 定位（2026-11-16 技术总监指示，docs/11）：**正向道路的团队协作效率工具**——先完成基础功能（IM/文档协同/任务/日程/公告/审批/文件）；账号池等"那一套"封存为研究线，不作为产品设计
 
 ## 一句话定义
 
@@ -19,6 +19,7 @@
 | [docs/05-network-tailscale.md](docs/05-network-tailscale.md) | 团队设备组网 runbook |
 | [docs/09-tech-stack-reality.md](docs/09-tech-stack-reality.md) | 技术栈选型现状（实证版本，2026-11-16 rog-x 盘点） |
 | [docs/10-foundation-design.md](docs/10-foundation-design.md) | 底层基座设计（分工版，含参考源码与成员任务） |
+| [docs/11-direction-pivot-2026-11-16.md](docs/11-direction-pivot-2026-11-16.md) | **方向调整存档**：基础功能为主，池号线封存（技术总监指示） |
 | [docs/06-github-auth-setup.md](docs/06-github-auth-setup.md) | GitHub 授权（已完成） |
 | [docs/schema.sql](docs/schema.sql) | 全量建表语句（MySQL 8，分片友好） |
 | [ROADMAP.md](ROADMAP.md) | 四周 MVP 切片与当前状态 |
