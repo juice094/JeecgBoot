@@ -58,6 +58,10 @@ CREATE TABLE device_sessions (
 );
 
 -- ========== IM (写扩散) ==========
+-- ⚠️ 2026-11-17 封存标注（docs/11 裁决 + docs/13 §一，issue #9）：
+--    以下四表属自研消息线（docs/03），已整体转为研究线封存，
+--    不作为产品开发依据。MVP 聊天工作台 = Mattermost 集成（ROADMAP M2）。
+--    重启自研线须经技术总监重新拍板。
 CREATE TABLE conversations (
   id          VARCHAR(36) NOT NULL,
   type        VARCHAR(8)  NOT NULL COMMENT 'single/group',
