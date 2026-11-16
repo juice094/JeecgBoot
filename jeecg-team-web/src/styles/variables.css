@@ -1,0 +1,38 @@
+/* 主题变量 —— 提取自参考原型（航城蓝鸥 OA），青绿色主色
+ * 设计令牌分三层（docs/13 §三.4，issue #11）：
+ *   颜色/圆角/阴影 —— 语义令牌，组件直接用
+ *   字号/间距 —— 阶梯令牌，新增代码必须用 var()，存量代码随触碰逐步迁移
+ */
+:root {
+  --primary: #127a7b;
+  --primary-light: #e6f2f2;
+  --bg-body: #f4f6f9;
+  --bg-card: #ffffff;
+  --text-main: #303133;
+  --text-regular: #606266;
+  --text-muted: #909399;
+  --border-color: #ebeef5;
+  --border-color-light: #f2f6fc;
+  --danger: #f56c6c;
+  --warning: #e6a23c;
+  --success: #67c23a;
+  --sidebar-width: 230px;
+  --header-height: 60px;
+  --shadow-card: 0 2px 12px 0 rgba(0, 0, 0, 0.05);
+  --radius-md: 8px;
+  --radius-sm: 4px;
+
+  /* 字号阶梯 */
+  --font-size-xs: 11px;
+  --font-size-sm: 12px;
+  --font-size-md: 13px;
+  --font-size-base: 14px;
+  --font-size-lg: 16px;
+
+  /* 间距阶梯 */
+  --spacing-xs: 4px;
+  --spacing-sm: 8px;
+  --spacing-md: 12px;
+  --spacing-lg: 16px;
+  --spacing-xl: 20px;
+}

@@ -1,0 +1,82 @@
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family:
+    -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial,
+    'PingFang SC', 'Microsoft YaHei', sans-serif;
+  background-color: var(--bg-body);
+  color: var(--text-main);
+  height: 100vh;
+  overflow: hidden;
+  -webkit-font-smoothing: antialiased;
+}
+
+a {
+  text-decoration: none;
+  color: inherit;
+}
+
+ul {
+  list-style: none;
+}
+
+/* 通用卡片 */
+.card {
+  background: var(--bg-card);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-card);
+  padding: 16px 20px;
+}
+
+.card + .card {
+  margin-top: 16px;
+}
+
+.card-title {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text-main);
+  margin-bottom: 12px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid var(--border-color-light);
+}
+
+/* 通用标签 */
+.tag {
+  display: inline-block;
+  padding: 2px 8px;
+  font-size: 12px;
+  border-radius: var(--radius-sm);
+}
+
+.tag--success {
+  color: var(--success);
+  background: rgba(103, 194, 58, 0.12);
+}
+
+.tag--warning {
+  color: var(--warning);
+  background: rgba(230, 162, 60, 0.12);
+}
+
+.tag--info {
+  color: var(--primary);
+  background: var(--primary-light);
+}
+
+/* 占位页通用 */
+.placeholder-page {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.placeholder-tip {
+  color: var(--text-muted);
+  font-size: 13px;
+  line-height: 1.8;
+}
