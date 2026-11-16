@@ -58,6 +58,16 @@
 - **工作报告整合交付**：`projects/agent-collab-pilot/reports/工作报告-2026-11-16.md`（六章+附录），已推 GitHub `juice094/JeecgBoot` pilot/design 分支（commit 26a2904e，含 master 领先的 identity/docs08/poc 三 commit 一并同步）
 - **待拍板**：WSS 网关技术栈 A=Java融jeecg(推荐)/B=独立Node；客户端形态；群聊规模；AI 消息审计范围
 
+## 11-16 下午：issue #6 文档实例部署 + 方向调整对齐
+
+- **方向调整（docs-11，技术总监指示）**：基础功能为正线 M1-M4（RBAC/Mattermost IM/OnlyOffice/MinIO/Knife4j/审批流）；账号池/浏览器池/WSS 网关/agent 调度**封存研究线**不进排期。开发主阵地移 rog-x。分支约定：pilot/design=设计存档，pilot/w1-trim=开发主分支
+- **issue #6 完成**：Knife4j 文档实例常驻——`/root/jeecg-doc/`（fork 克隆+本地构建 jar），systemd `jeecg-doc.service`（enabled 开机自启），nginx 反代 8080 basic auth → jar 绑回环 8081。验收：无口令 401 / 带口令 200，rog-x 经 tailnet 200。口令 `/root/jeecg-doc/jeecg-doc.env`（DOC_USER=doc）
+- **脚本三处修复已推 pilot/design**（commit 728165d6）：①heredoc `\&` 字面写进 unit→JDBC 参数带反斜杠启动失败 ②jeecg fat jar 只含 knife4j-openapi3-ui（无 starter）→ `knife4j.basic.*` 无消费者，basic auth 改 nginx 层承担 ③端口检查改 8081 幂等
+- **环境适配**：jeecg-boot-redis 加 `127.0.0.1:6379` 映射（redis 无密码，禁外网卡）；`/usr/local/bin/mysql` wrapper→docker exec 进容器（宿主 apt 内网镜像 DNS 故障，腾讯云 mirrors.tencentyun.com 解析失败；已切公网源+Clash 代理装 nginx）
+- **菜单裁剪随方向修订**：ROADMAP 新方向保留 Online 表单+积木报表（通用填报/团队统计），已恢复两菜单（低代码开发/统计报表 status=1）；维持禁用：数据可视化/AI应用/系统监控/组件示例/导航示例/关于
+- **docker jeecg-boot-system 已停**（8080 让给 nginx 反代）；vue 前端容器仍在 80
+- **运维注意**：`nohup` 保活长 apt（会话 SIGKILL 频发）；rog-x 侧并发推送多，push 前先 fetch+rebase
+
 ## 教训 / 备忘
 
 - Chrome 136+：`--remote-debugging-port` 必须配非默认 `--user-data-dir`，且与人工会话互斥（SingletonLock）——账号池设计的硬约束
