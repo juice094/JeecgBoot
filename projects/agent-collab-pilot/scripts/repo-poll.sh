@@ -14,14 +14,34 @@ ALERT_JOB_ID="521d3f55-a789-49e4-baeb-c508ddf5b4ab"
 ts()  { date '+%Y-%m-%dT%H:%M:%S+08:00'; }
 log() { printf '[%s] %s\n' "$(ts)" "$1" >> "$LOG"; }
 
-# --- 拉取（gh 已认证为 juice094） ---
-members=$(gh api "repos/$REPO/collaborators" --jq '[.[].login]' 2>>"$LOG") \
+# --- 拉取（gh 已认证为 juice094）；瞬时网络故障重试 2 次，避免空值静默 QUIET 吞掉变更窗口 ---
+gh_fetch() {
+  local desc="$1"; shift
+  local out
+  for attempt in 1 2 3; do
+    if out=$("@" 2>>"$LOG"); then
+      printf '%s' "$out"
+      return 0
+    fi
+    log "WARN: $desc fetch failed (attempt $attempt)"
+    sleep 3
+  done
+  log "ERROR: $desc fetch failed after 3 attempts"
+  return 1
+}
+
+members=$(gh_fetch collaborators gh api "repos/$REPO/collaborators" --jq '[.[].login]') \
   || { log "ERROR: collaborators fetch failed"; exit 1; }
-branches=$(gh api "repos/$REPO/branches?per_page=100" --jq '[.[] | {name: .name, sha: .commit.sha}]' 2>>"$LOG") \
+branches=$(gh_fetch branches gh api "repos/$REPO/branches?per_page=100" --jq '[.[] | {name: .name, sha: .commit.sha}]') \
   || { log "ERROR: branches fetch failed"; exit 1; }
-prs=$(gh pr list --repo "$REPO" --state all --json number,title,author,state,updatedAt \
-      --jq '[.[] | {number, title, author: .author.login, state, updatedAt}]' 2>>"$LOG") \
+prs=$(gh_fetch prs gh pr list --repo "$REPO" --state all --json number,title,author,state,updatedAt \
+      --jq '[.[] | {number, title, author: .author.login, state, updatedAt}]') \
   || { log "ERROR: pr list failed"; exit 1; }
+
+# 空值兜底：gh 退出 0 但输出非 JSON（限流页/空响应）时 --argjson 会炸，这里预检
+case "$members" in '['*']') ;; *) log "ERROR: members non-JSON: ${members:0:80}"; exit 1;; esac
+case "$branches" in '['*']') ;; *) log "ERROR: branches non-JSON: ${branches:0:80}"; exit 1;; esac
+case "$prs" in '['*']') ;; *) log "ERROR: prs non-JSON: ${prs:0:80}"; exit 1;; esac
 
 # --- 与 state 比对（jq） ---
 report=$(jq -n \
@@ -102,9 +122,19 @@ $(jq -c '.' <<<"$report")
 MSGEOF
 
 if command -v openclaw > /dev/null 2>&1; then
-  openclaw cron edit "$ALERT_JOB_ID" --message "$(cat "$msgfile")" > /dev/null 2>>"$LOG" \
-    && openclaw cron run "$ALERT_JOB_ID" > /dev/null 2>>"$LOG" \
-    || log "ERROR: alert trigger failed"
+  if openclaw cron edit "$ALERT_JOB_ID" --message "$(cat "$msgfile")" > /dev/null 2>>"$LOG"; then
+    # 回读验证：确认 message 真含变更 JSON 再触发，杜绝空消息假告警（11-16 两次假告警根因）
+    verify=$(openclaw cron list --json 2>/dev/null | jq -r --arg id "$ALERT_JOB_ID" '(.jobs // .)[] | select(.id == $id) | .message // ""')
+    if printf '%s' "$verify" | grep -q '"changes"'; then
+      openclaw cron run "$ALERT_JOB_ID" > /dev/null 2>>"$LOG" \
+        && log "ALERT triggered" \
+        || log "ERROR: cron run failed"
+    else
+      log "ERROR: message verify failed (无 changes 标记)，skip run"
+    fi
+  else
+    log "ERROR: cron edit failed"
+  fi
   # 失败重试一次（k2d8 偶发空 tool_call 导致 400）
   sleep 50
   st=$(openclaw cron runs --id "$ALERT_JOB_ID" 2>/dev/null | jq -r '.entries[0].status // "unknown"')
