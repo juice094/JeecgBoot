@@ -90,7 +90,7 @@ WorkingDirectory=$BASE
 ExecStart=$(which java) -Xms256m -Xmx512m -jar $JAR_FILE \
   --spring.profiles.active=dev \
   --server.port=8080 \
-  --spring.datasource.dynamic.datasource.master.url=jdbc:mysql://$DB_HOST:$DB_PORT/jeecg-boot?characterEncoding=UTF-8\&useUnicode=true\&useSSL=false\&tinyInt1isBit=false\&allowPublicKeyRetrieval=true\&serverTimezone=Asia/Shanghai \
+  --spring.datasource.dynamic.datasource.master.url=jdbc:mysql://$DB_HOST:$DB_PORT/jeecg-boot?characterEncoding=UTF-8&useUnicode=true&useSSL=false&tinyInt1isBit=false&allowPublicKeyRetrieval=true&serverTimezone=Asia/Shanghai \
   --spring.datasource.dynamic.datasource.master.username=root \
   --spring.datasource.dynamic.datasource.master.password=root \
   --spring.data.redis.host=127.0.0.1 --spring.data.redis.port=6379 \
