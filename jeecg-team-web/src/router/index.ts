@@ -17,31 +17,31 @@ export const layoutChildren: RouteRecordRaw[] = [
     path: 'message',
     name: 'ChatWorkbench',
     component: () => import('@/modules/message/views/ChatWorkbench.vue'),
-    meta: { title: '聊天工作台', owner: 'qingyanjunzi', group: '用户与消息' },
+    meta: { title: '聊天工作台', owner: 'qingyanjunzi', group: '用户与消息', icon: 'chat' },
   },
   {
     path: 'business/tasks',
     name: 'TaskBoard',
     component: () => import('@/modules/business/views/TaskBoard.vue'),
-    meta: { title: '任务看板', owner: 'juice094', group: '表单与审批' },
+    meta: { title: '任务看板', owner: 'juice094', group: '表单与审批', icon: 'kanban' },
   },
   {
     path: 'business/request',
     name: 'RequestForm',
     component: () => import('@/modules/business/views/RequestForm.vue'),
-    meta: { title: '表单与审批', owner: 'juice094', group: '表单与审批' },
+    meta: { title: '表单与审批', owner: 'juice094', group: '表单与审批', icon: 'form' },
   },
   {
     path: 'admin/org',
     name: 'OrgTenant',
     component: () => import('@/modules/admin/views/OrgTenant.vue'),
-    meta: { title: '组织与租户', owner: 'Ym3699', group: '组织租户管理' },
+    meta: { title: '组织与租户', owner: 'Ym3699', group: '组织租户管理', icon: 'org' },
   },
   {
     path: 'admin/members',
     name: 'TeamMembers',
     component: () => import('@/modules/admin/views/TeamMembers.vue'),
-    meta: { title: '团队成员', owner: 'Ym3699', group: '组织租户管理' },
+    meta: { title: '团队成员', owner: 'Ym3699', group: '组织租户管理', icon: 'members' },
   },
 ];
 
