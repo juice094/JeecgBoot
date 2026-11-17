@@ -62,6 +62,10 @@
 | 8065 / 8090 | 本机 Mattermost / OnlyOffice | M2 协作通路 |
 | 13306 | VM MySQL | jeecg-doc 底座 |
 
+**构建环境纪律（11-17 实测补）**：
+- 本机编译/测试必须 JDK 17：mvn.cmd 默认抓 pleiades JDK 25 会使 base-core Lombok 编译失败（用 android-re-tools 的 jdk-17.0.12+7 或 scripts/start-team-backend.sh 口径）
+- **Flyway 脚本需手动执行**：application-dev.yml 显式排除了 FlywayAutoConfiguration，dev 库新脚本必须手动跑 + 登记 flyway_schema_history，否则代码与库脱节（11-17 team_audit_log 缺表事故教训）
+
 ## 六、GitHub 协作模式与命令（培训版）
 
 ### 分支模型
