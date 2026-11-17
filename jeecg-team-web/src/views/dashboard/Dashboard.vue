@@ -69,7 +69,6 @@ const STATUS_CLS: Record<Approval['status'], string> = { pending: 'tag-warning',
             <div class="item-sub">{{ item.category }} · {{ item.code }}</div>
           </div>
           <div class="item-status">
-            <span>{{ STATUS_TEXT[item.status] }}</span>
             <span class="tag" :class="STATUS_CLS[item.status]">{{ STATUS_TEXT[item.status] }}</span>
           </div>
         </div>
