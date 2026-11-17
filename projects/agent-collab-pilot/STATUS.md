@@ -1,45 +1,58 @@
-# STATUS — 团队协作效率工具现状（2026-11-16 收尾快照）
+# STATUS — 团队协作效率工具现状（2026-11-17 阶段收尾快照）
 
-> 任何会话窗口重开时先读本文件 + `docs/11`（方向裁决）+ `ROADMAP.md`。
+> 任何会话窗口重开时先读本文件 + `docs/11`（方向裁决）+ `docs/13`（上手指南）+ `docs/16`（后端模块设计）+ `docs/17`（VM 维护手册）。
+> 微服务栈为封存研究线（docs/14），**一切交付在单体形态内**，勿向 Nacos/Gateway 体系内加东西。
 
 ## 方向（已定案，勿回头）
 
-正向道路的团队协作效率工具（基础功能优先）。账号池/浏览器池/AI采集/Agent 调度**整体封存研究线**，未经技术总监重新拍板不得重启（docs/11）。
+正向道路的团队协作效率工具（基础功能优先）。账号池/浏览器池/AI采集/Agent 调度封存，未经技术总监拍板不得重启。
 
-## 运行基线（全部已验证）
+## 运行基线（全部已验证在役）
 
-| 端 | 服务 | 入口 |
+| 端 | 位置 | 状态 |
 |---|---|---|
-| 本机 rog-x | jeecg 后端 | :8081（/jeecg-boot，关验证码） |
-| 本机 | jeecg 原生前端 | :3100 |
-| 本机 | **团队新前端（主战场）** | **:3200（admin/123456）** |
-| 本机 | Mattermost IM | :8065（admin/Admin@123456） |
-| 本机 | OnlyOffice | :8090 |
-| 云 VM | 接口文档实例 | 100.78.65.37:8080/jeecg-boot/doc.html（basic auth 口令在 VM /root/jeecg-doc/jeecg-doc.env） |
-| 云 VM | claw + jeecg 微服务栈 | 维护报告 /root/maintenance-report-2026-11-16.md |
+| 后端（单体） | 本机 8081 = pilot/w1-trim @ `7044cc24` jar | ✅ 含 team 模块 + Knife4j 分组 |
+| 前端（主战场） | 本机 3200 dev（admin/123456） | ✅ 双模式 + 14 页 + 会话工作台 2.0 |
+| 接口文档合同 | VM 100.78.65.37:8080/doc.html | ✅ 已切 pilot/w1-trim，团队协作 18 条 / 系统管理 88 条 |
+| 自动更新 | VM 每日 05:30 timer 跟踪 origin/pilot/w1-trim | ✅ 已改轨（浅克隆需显式 refspec） |
+| Tauri 打包 | pnpm tauri:build → NSIS 安装包 | ✅ 产物已出；**构建必须带 HTTPS_PROXY=http://127.0.0.1:7897** |
 
-## 分工（模块目录=职责边界）
+## 11-17 单日完成（按层）
 
-- qingyanjunzi → `jeecg-team-web/src/modules/message/`（issue #1）
-- **juice094 → `src/modules/business/`（issue #2 任务看板 / #3 表单与审批）**
-- Ym3699 → `src/modules/admin/`（issue #4/#5）
-- 开发分支从 `pilot/w1-trim` 切；设计文档在 `pilot/design` 分支（worktree: C:\dev\agent-collab-pilot）
+- **仓库**：team-web 入库、默认分支=pilot/w1-trim、issue/PR 模板、分支保护命令（PR#15 内待宿执行）、#7~#12 全部闭环、#16 关闭
+- **后端 jeecg-module-team**：team_task（V3.9.6_2）+ team_approval/team_approval_step 状态机 + team_bug（V3.9.6_3）；编译与运行时全链路验证（提交→逐级审批→终审守卫→拒绝路径）
+- **前端**：双模式工作台（模式-路由单向派生、lastToolPath 记忆）、航城蓝鸥原型 14 页复现、Phosphor 图标、设计令牌/常量区、菜单单一来源、个人报表嵌 JimuReport、会话工作台 agent-loop 重做（ToolCallCard + 斜杠命令 + 会话内快捷表单）
+- **接入**：审批中心/日常申请/Bug/仪表盘/人事/资料中心上传 全部真接口；仪表盘"考勤记录"按业务适配替换为系统公告
+- **文档**：docs/13~17 全部推送
 
-## 编排结论（jeecg 能力复用）
+## 分工现状
 
-通用工具中心 = Online表单（全员填报，管理员配置模板）+ 我的消息/公告/通讯录 + 积木报表；管理面（用户/角色/菜单/监控）按角色授权可见。裁剪：大屏/AI应用/演示页。**裁剪清单已在 ROADMAP 修订（19b602f9）。**
+- qingyanjunzi → message 模块：**Mattermost 集成待启动（M2）**，会话工作台壳已就绪
+- Ym3699 → admin 模块：管理组后端未立项；**人事页已用 sys 原生接口先接入**（他可直接在此基础上增强）；固定资产/排课/报修仍 mock
+- juice094 → business + 负责人 + **下一会话主线**；Kimi Code 继续执行接手清单
 
-## 待办（按优先级）
+## 下一会话主线（juice094，按优先级）
 
-1. 对侧磁盘清理（已批准）：`docker image prune -f` + `docker builder prune -f`（约 1.2G+）——**tailnet DERP 中继恢复后 SSH 执行**（17:05 起 22 端口超时中，属校园网换网常见抖动，重试即恢复）
-2. juice094：issue #2 任务表 DDL + 后端模块（前端看板页骨架已就绪）
-3. 成员已可访问：tailnet 已有 qingyanjunzi 设备（pc-20261030bbye）；按 docs/12 分发文档口令
-4. 里程碑 M2：Mattermost↔OnlyOffice 打通 + SSO（Ym3699 协作通路）
+1. **业务组三页落地**：市场活动/职业教育/学生服务——表设计 + CRUD；学生服务建议复用审批状态机（学籍异动=category）
+2. **审批中心增强**：team_approval_step 加 approver_id 做真实"待我审批"归属过滤；拒绝/通过意见弹窗替换 window.prompt
+3. **仪表盘聚合接口**：一次拉齐 待办数/公告/未读（替代前端 N 次往返）
+4. **工具自设计**：斜杠命令参数解析（`/apply 加班申请 标题…`）+ /task 接 team_task 快捷表单；更多 navigate 命令
+5. **工作邮箱立项决策**：SMTP 自建 vs 后置（docs/16 矩阵有边界说明）
+6. **Tauri 版本化**：安装包版本号/签名/自动更新策略
+7. （联 Ym3699）管理组三个 CRUD 立项；（联 qingyanjunzi）Mattermost 接入
 
-## 已知坑（别再踩）
+## 已知坑（本会话新增，重读 docs/13 §六）
 
-- systemctl --user 查 root 服务必须 `export XDG_RUNTIME_DIR=/run/user/0`
-- 本机 Docker Desktop 的端口转发 netstat 不显示 LISTENING
-- vite/Node24 默认只绑 IPv6 → jeecg-team-web 已显式 host 127.0.0.1
-- 对侧 cron 排期必须是合法日期（"2月31日"曾致 claw 瘫痪）
-- github.com 直连偶发 SSL 失败，git push 重试即可
+- yml 改动必须 python 结构校验 + 断言关键 key 层级（springdoc 截断 spring 块事故）
+- phosphor 图标导出名带 `Ph` 前缀且无 `Slashes`（用 `PhCommand`）
+- 合成 KeyboardEvent 不触发 Vue `@keydown.enter`（自动化用 Input.dispatchKeyEvent）
+- git 切分支会清掉"目标分支不存在"的已跟踪目录；vite 运行中切分支会端口漂移 3200→5173
+- 审批接口 comment 带中文必须 URL 编码（前端 axios 自动，Apifox 手测注意）
+- tailnet 今日走 SFO 中继频繁超时：SSH 重试即恢复，勿误判 VM 宕机
+- cargo/tauri 构建走 7897 代理；VM 文档验证带 knife4j basic auth
+
+## 待宿拍板
+
+- VM 微服务四容器停机留数据（docs/14 §五.3，连续 30 天无研究使用触发）
+- 分支保护命令（PR #15 正文）是否执行
+- 工作邮箱立项（见主线 5）
