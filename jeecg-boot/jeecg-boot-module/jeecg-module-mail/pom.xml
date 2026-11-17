@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <parent>
+        <artifactId>jeecg-boot-module</artifactId>
+        <groupId>org.jeecgframework.boot3</groupId>
+        <version>3.9.6</version>
+    </parent>
+    <modelVersion>4.0.0</modelVersion>
+
+    <artifactId>jeecg-module-mail</artifactId>
+    <name>jeecg-module-mail</name>
+    <description>OA 邮件体系 - 后端骨架（未立项原型线，独立编译，不进入运行时）</description>
+
+    <dependencies>
+        <!-- base-core 已传递 spring-boot-starter-mail（JavaMailSender 可用），不重复声明 -->
+        <dependency>
+            <groupId>org.jeecgframework.boot3</groupId>
+            <artifactId>jeecg-boot-base-core</artifactId>
+        </dependency>
+        <!-- B-2 stretch：GreenMail 本地起 IMAP/SMTP 服务做同步引擎正路径集成测试（test 作用域） -->
+        <dependency>
+            <groupId>com.icegreen</groupId>
+            <artifactId>greenmail-junit5</artifactId>
+            <version>2.1.2</version>
+            <scope>test</scope>
+        </dependency>
+    </dependencies>
+</project>

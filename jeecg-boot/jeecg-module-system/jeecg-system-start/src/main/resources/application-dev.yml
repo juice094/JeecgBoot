@@ -15,6 +15,15 @@ management:
       exposure:
         include: metrics,httpexchanges,jeecghttptrace
 
+# 接口文档分组（Knife4j 顶部下拉）：团队协作=自研 team 模块；系统管理=jeecg 原生 sys 域
+# 未分组的接口留在 default 全量组。新增自研域时在此追加。
+springdoc:
+  group-configs:
+    - group: 团队协作
+      paths-to-match: /team/**
+    - group: 系统管理
+      paths-to-match: /sys/**
+
 spring:
   flyway:
     # 是否启用flyway
@@ -280,8 +289,8 @@ jeecg:
     lowCodeMode: dev
     # 是否允许同一账号多地同时登录 （为 true 时允许一起登录, 为 false 时新登录挤掉旧登录）
     is-concurrent: true
-    # 登录是否启用验证码
-    enableLoginCaptcha: true
+    # 登录是否启用验证码（docs/13 §五基线=本机关；2026-11-17 由 true 改回 false，宿知悉）
+    enableLoginCaptcha: false
     # 是否开启三级等保强密码校验（true 开启强密码模式，false 使用简单密码规则）
     enableStrongPwd: false
   # 签名密钥串(前后端要一致，正式发布请自行修改)
