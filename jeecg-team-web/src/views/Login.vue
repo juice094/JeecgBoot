@@ -58,7 +58,8 @@ async function onSubmit() {
   display: flex;
   align-items: center;
   justify-content: center;
-  background: linear-gradient(135deg, #127a7b 0%, #0d5a5b 100%);
+  /* 品牌渐变随主题自适应（深色基线用提亮主色，浅色回原值系） */
+  background: linear-gradient(135deg, var(--primary) 0%, var(--primary-700) 100%);
 }
 
 .login-card {

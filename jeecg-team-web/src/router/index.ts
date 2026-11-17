@@ -17,6 +17,12 @@ export const layoutChildren: RouteRecordRaw[] = [
     meta: { title: '仪表盘', owner: 'juice094', group: '概览', icon: 'dashboard' },
   },
   {
+    path: 'issues',
+    name: 'IssueList',
+    component: () => import('@/views/issue/IssueList.vue'),
+    meta: { title: '工作项', owner: 'juice094', group: '概览', icon: 'issues' },
+  },
+  {
     path: 'admin/hr',
     name: 'HrManage',
     component: () => import('@/modules/admin/views/HrManage.vue'),
@@ -39,6 +45,30 @@ export const layoutChildren: RouteRecordRaw[] = [
     name: 'RepairManage',
     component: () => import('@/modules/admin/views/RepairManage.vue'),
     meta: { title: '后勤管理', owner: 'Ym3699', group: '管理', icon: 'repair' },
+  },
+  {
+    path: 'admin/monitor/logs',
+    name: 'MonitorLogs',
+    component: () => import('@/modules/business/views/monitor/MonitorLogs.vue'),
+    meta: { title: '日志管理', owner: 'showcase-dev', group: '管理', icon: 'logs' },
+  },
+  {
+    path: 'admin/monitor/quartz',
+    name: 'MonitorQuartz',
+    component: () => import('@/modules/business/views/monitor/MonitorQuartz.vue'),
+    meta: { title: '定时任务', group: '管理', icon: 'quartz' },
+  },
+  {
+    path: 'admin/monitor/online',
+    name: 'MonitorOnline',
+    component: () => import('@/modules/business/views/monitor/MonitorOnline.vue'),
+    meta: { title: '在线用户', group: '管理', icon: 'online' },
+  },
+  {
+    path: 'admin/monitor/redis',
+    name: 'MonitorRedis',
+    component: () => import('@/modules/business/views/monitor/MonitorRedis.vue'),
+    meta: { title: 'Redis 监控', group: '管理', icon: 'redis' },
   },
   {
     path: 'biz/marketing',
@@ -87,6 +117,19 @@ export const layoutChildren: RouteRecordRaw[] = [
     name: 'BugReport',
     component: () => import('@/modules/business/views/BugReport.vue'),
     meta: { title: 'Bug 反馈', owner: 'juice094', group: '工具', icon: 'bug' },
+  },
+  {
+    path: 'tools/taskboard',
+    name: 'TaskBoard',
+    component: () => import('@/modules/business/views/TaskBoard.vue'),
+    meta: { title: '任务看板', owner: 'juice094', group: '工具', icon: 'taskboard' },
+  },
+  {
+    // 详情页不进侧栏菜单（不设 group），从列表行点击进入
+    path: 'tools/taskboard/:id',
+    name: 'TaskDetail',
+    component: () => import('@/views/issue/TaskDetail.vue'),
+    meta: { title: '任务详情', owner: 'juice094' },
   },
   {
     path: 'tools/report',

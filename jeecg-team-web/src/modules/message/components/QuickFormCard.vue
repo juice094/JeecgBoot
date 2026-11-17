@@ -124,13 +124,15 @@ async function submit() {
 .qf__input {
   flex: 1;
   padding: 8px 10px;
-  border: 1px solid #dcdfe6;
+  border: 1px solid var(--border-strong);
   border-radius: var(--radius-sm);
   font-size: var(--font-size-md);
   outline: none;
+  transition: border-color var(--duration-fast) var(--ease-out), box-shadow var(--duration-fast) var(--ease-out);
 }
 .qf__input:focus {
   border-color: var(--primary);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--primary) 12%, transparent);
 }
 .qf__select {
   flex: 0 0 130px;
