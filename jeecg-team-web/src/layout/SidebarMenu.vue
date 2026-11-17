@@ -1,6 +1,7 @@
 <script setup lang="ts">
-import { computed } from 'vue';
-import { useRoute, useRouter } from 'vue-router';
+import {computed, type Component} from 'vue';
+import {useRoute, useRouter} from 'vue-router';
+
 import {
   PhSquaresFour,
   PhUsersThree,
@@ -20,9 +21,8 @@ import {
   PhWrench,
   PhCaretLeft,
   PhCaretRight,
-  type FunctionalComponent,
 } from '@phosphor-icons/vue';
-import { useWorkbenchStore } from '@/stores/workbench';
+import {useWorkbenchStore} from '@/stores/workbench';
 
 const route = useRoute();
 const router = useRouter();
@@ -42,8 +42,9 @@ interface MenuGroup {
 }
 
 /** 路由 meta.icon → Phosphor 图标组件（唯一权威在 router/index.ts） */
-const MENU_ICONS: Record<string, FunctionalComponent> = {
+const MENU_ICONS: Record<string, Component> = {
   dashboard: PhSquaresFour,
+  issues: PhCheckSquareOffset,
   hr: PhUsersThree,
   assets: PhBuildings,
   academic: PhBooks,
@@ -64,7 +65,13 @@ const menus = computed<MenuGroup[]>(() => {
   const children = router.options.routes.find((r) => r.path === '/')?.children ?? [];
   const groups = new Map<string, MenuChild[]>();
   for (const child of children) {
-    const meta = child.meta as { title?: string; owner?: string; group?: string; icon?: string; badge?: number } | undefined;
+    const meta = child.meta as {
+      title?: string;
+      owner?: string;
+      group?: string;
+      icon?: string;
+      badge?: number
+    } | undefined;
     if (!meta?.group || !child.path) continue;
     if (!groups.has(meta.group)) groups.set(meta.group, []);
     groups.get(meta.group)!.push({
@@ -75,7 +82,7 @@ const menus = computed<MenuGroup[]>(() => {
       badge: meta.badge,
     });
   }
-  return [...groups.entries()].map(([title, items]) => ({ title, children: items }));
+  return [...groups.entries()].map(([title, items]) => ({title, children: items}));
 });
 
 const isActive = (path: string) => route.path === path;
@@ -93,7 +100,7 @@ function switchMode(mode: 'tool' | 'chat') {
 <template>
   <aside class="sidebar" :class="{ 'sidebar--collapsed': workbench.sidebarCollapsed }">
     <div class="sidebar__logo">
-      <PhSquaresFour :size="24" class="sidebar__logo-icon" />
+      <PhSquaresFour :size="22" class="sidebar__logo-icon"/>
       <span v-if="!workbench.sidebarCollapsed" class="sidebar__logo-text">团队协作工作台</span>
     </div>
 
@@ -101,14 +108,14 @@ function switchMode(mode: 'tool' | 'chat') {
       <div v-for="group in menus" :key="group.title" class="menu-group">
         <div v-if="!workbench.sidebarCollapsed" class="menu-group__title">{{ group.title }}</div>
         <router-link
-          v-for="item in group.children"
-          :key="item.path"
-          :to="item.path"
-          class="menu-item"
-          :class="{ 'menu-item--active': isActive(item.path), 'menu-item--slim': workbench.sidebarCollapsed }"
-          :title="workbench.sidebarCollapsed ? item.title : ''"
+            v-for="item in group.children"
+            :key="item.path"
+            :to="item.path"
+            class="menu-item"
+            :class="{ 'menu-item--active': isActive(item.path), 'menu-item--slim': workbench.sidebarCollapsed }"
+            :title="workbench.sidebarCollapsed ? item.title : ''"
         >
-          <component :is="MENU_ICONS[item.icon] ?? PhSquaresFour" :size="18" class="menu-item__icon" />
+          <component :is="MENU_ICONS[item.icon] ?? PhSquaresFour" :size="18" class="menu-item__icon"/>
           <span v-if="!workbench.sidebarCollapsed" class="menu-item__text">{{ item.title }}</span>
           <span v-if="item.badge && !workbench.sidebarCollapsed" class="menu-badge">{{ item.badge }}</span>
         </router-link>
@@ -117,7 +124,7 @@ function switchMode(mode: 'tool' | 'chat') {
 
     <!-- 会话模式：侧栏仅保留头部与底栏，主区域由会话工作台占满 -->
     <div v-show="workbench.mode === 'chat'" class="sidebar__chat-hint">
-      <PhChatTeardropText :size="22" />
+      <PhChatTeardropText :size="22"/>
       <span v-if="!workbench.sidebarCollapsed">会话工作台</span>
     </div>
 
@@ -125,27 +132,28 @@ function switchMode(mode: 'tool' | 'chat') {
     <div class="sidebar__footer">
       <div class="mode-switch" role="tablist" aria-label="工作台模式切换">
         <button
-          class="mode-switch__btn"
-          :class="{ 'mode-switch__btn--active': workbench.mode === 'tool' }"
-          title="工具工作台"
-          @click="switchMode('tool')"
+            class="mode-switch__btn"
+            :class="{ 'mode-switch__btn--active': workbench.mode === 'tool' }"
+            title="工具工作台"
+            @click="switchMode('tool')"
         >
-          <PhWrench :size="16" />
+          <PhWrench :size="14"/>
           <span v-if="!workbench.sidebarCollapsed">工具</span>
         </button>
         <button
-          class="mode-switch__btn"
-          :class="{ 'mode-switch__btn--active': workbench.mode === 'chat' }"
-          title="会话工作台"
-          @click="switchMode('chat')"
+            class="mode-switch__btn"
+            :class="{ 'mode-switch__btn--active': workbench.mode === 'chat' }"
+            title="会话工作台"
+            @click="switchMode('chat')"
         >
-          <PhChatTeardropText :size="16" />
+          <PhChatTeardropText :size="14"/>
           <span v-if="!workbench.sidebarCollapsed">会话</span>
         </button>
       </div>
-      <button class="sidebar__collapse" :title="workbench.sidebarCollapsed ? '展开侧栏' : '收起侧栏'" @click="workbench.toggleSidebar()">
-        <PhCaretLeft v-if="!workbench.sidebarCollapsed" :size="16" />
-        <PhCaretRight v-else :size="16" />
+      <button class="sidebar__collapse" :title="workbench.sidebarCollapsed ? '展开侧栏' : '收起侧栏'"
+              @click="workbench.toggleSidebar()">
+        <PhCaretLeft v-if="!workbench.sidebarCollapsed" :size="16"/>
+        <PhCaretRight v-else :size="16"/>
       </button>
     </div>
   </aside>
@@ -160,7 +168,7 @@ function switchMode(mode: 'tool' | 'chat') {
   flex-direction: column;
   flex-shrink: 0;
   z-index: 10;
-  transition: width 0.2s ease;
+  transition: width var(--duration-normal) var(--ease-out);
 }
 
 .sidebar--collapsed {
@@ -173,10 +181,11 @@ function switchMode(mode: 'tool' | 'chat') {
   align-items: center;
   gap: 10px;
   padding: 0 20px;
-  font-size: 18px;
+  font-size: 17px;
   font-weight: 600;
   color: var(--primary);
   border-bottom: 1px solid var(--border-color);
+  flex-shrink: 0;
 }
 
 .sidebar--collapsed .sidebar__logo {
@@ -191,92 +200,98 @@ function switchMode(mode: 'tool' | 'chat') {
 .sidebar__logo-text {
   white-space: nowrap;
   overflow: hidden;
+  letter-spacing: -0.01em;
 }
 
 .sidebar__nav {
   flex: 1;
   overflow-y: auto;
-  padding: 15px 0;
+  padding: 12px 8px;
 }
 
 .menu-group {
-  margin-bottom: 15px;
+  margin-bottom: 12px;
 }
 
 .menu-group__title {
-  font-size: var(--font-size-sm);
+  font-size: var(--font-size-xs);
   color: var(--text-muted);
-  padding: 0 20px 8px;
+  padding: 8px 12px 4px;
+  font-weight: 500;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
 }
 
 .menu-item {
   display: flex;
   align-items: center;
-  gap: 12px;
-  padding: 10px 20px;
-  font-size: var(--font-size-base);
+  gap: 10px;
+  padding: 7px 12px;
+  font-size: var(--font-size-md);
   color: var(--text-regular);
   transition:
-    color 0.2s,
-    background 0.2s;
+    color var(--duration-fast) var(--ease-out),
+    background-color var(--duration-fast) var(--ease-out);
   position: relative;
+  border-radius: var(--radius-sm);
+  margin-bottom: 1px;
 }
 
 .menu-item__icon {
   color: var(--text-muted);
   flex-shrink: 0;
-  transition: color 0.2s;
+  transition: color var(--duration-fast) var(--ease-out);
 }
 
 .menu-item:hover {
-  color: var(--primary);
-  background: var(--border-color-light);
+  color: var(--text-main);
+  background: var(--gray-100);
 }
-
 .menu-item:hover .menu-item__icon {
-  color: var(--primary);
+  color: var(--text-regular);
 }
 
 .menu-item--active {
   color: var(--primary);
-  background: var(--primary-light);
+  background: var(--primary-50);
   font-weight: 500;
 }
-
+.menu-item--active .menu-item__icon {
+  color: var(--primary);
+}
 .menu-item--active::before {
   content: '';
   position: absolute;
   left: 0;
-  top: 0;
-  bottom: 0;
+  top: 50%;
+  transform: translateY(-50%);
   width: 3px;
+  height: 16px;
   background: var(--primary);
-}
-
-.menu-item--active .menu-item__icon {
-  color: var(--primary);
+  border-radius: 0 2px 2px 0;
 }
 
 .menu-item--slim {
   justify-content: center;
-  padding: 10px 0;
+  padding: 8px 0;
+  border-radius: var(--radius-sm);
 }
-
 .menu-item--slim::before {
-  left: 0;
+  display: none;
 }
 
-/* 菜单角标（原型 .badge：审批中心 34 / 工作邮箱 3，接口就绪后接真实计数） */
 .menu-badge {
   margin-left: auto;
   background: var(--danger);
   color: #fff;
-  font-size: var(--font-size-sm);
+  font-size: 10px;
   padding: 0 6px;
-  height: 18px;
-  line-height: 18px;
-  border-radius: 9px;
-  font-weight: normal;
+  height: 16px;
+  line-height: 16px;
+  border-radius: var(--radius-full);
+  font-weight: 500;
+  min-width: 16px;
+  text-align: center;
 }
 
 .sidebar__chat-hint {
@@ -286,7 +301,7 @@ function switchMode(mode: 'tool' | 'chat') {
   gap: 10px;
   padding: 18px 20px;
   color: var(--primary);
-  font-size: var(--font-size-base);
+  font-size: var(--font-size-md);
   font-weight: 500;
 }
 
@@ -298,8 +313,8 @@ function switchMode(mode: 'tool' | 'chat') {
 .sidebar__footer {
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 10px 12px;
+  gap: 6px;
+  padding: 10px 8px;
   border-top: 1px solid var(--border-color);
 }
 
@@ -311,10 +326,10 @@ function switchMode(mode: 'tool' | 'chat') {
 .mode-switch {
   flex: 1;
   display: flex;
-  background: var(--bg-body);
+  background: var(--gray-100);
   border-radius: var(--radius-sm);
-  padding: 3px;
-  gap: 3px;
+  padding: 2px;
+  gap: 2px;
 }
 
 .mode-switch__btn {
@@ -325,45 +340,44 @@ function switchMode(mode: 'tool' | 'chat') {
   gap: 5px;
   border: none;
   background: transparent;
-  color: var(--text-regular);
-  font-size: var(--font-size-md);
-  padding: 6px 8px;
-  border-radius: 3px;
+  color: var(--text-muted);
+  font-size: var(--font-size-xs);
+  padding: 5px 6px;
+  border-radius: var(--radius-xs);
   cursor: pointer;
   transition:
-    background 0.2s,
-    color 0.2s;
+    background-color var(--duration-fast) var(--ease-out),
+    color var(--duration-fast) var(--ease-out);
   white-space: nowrap;
+  font-weight: 500;
 }
 
 .mode-switch__btn:hover {
-  color: var(--primary);
+  color: var(--text-main);
 }
 
 .mode-switch__btn--active {
   background: var(--bg-card);
   color: var(--primary);
-  font-weight: 500;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+  box-shadow: var(--shadow-xs);
 }
 
 .sidebar__collapse {
   border: none;
   background: transparent;
   color: var(--text-muted);
-  padding: 6px;
+  padding: 5px;
   border-radius: var(--radius-sm);
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
   transition:
-    background 0.2s,
-    color 0.2s;
+    background-color var(--duration-fast) var(--ease-out),
+    color var(--duration-fast) var(--ease-out);
 }
-
 .sidebar__collapse:hover {
-  background: var(--border-color-light);
-  color: var(--primary);
+  background: var(--gray-100);
+  color: var(--text-main);
 }
 </style>

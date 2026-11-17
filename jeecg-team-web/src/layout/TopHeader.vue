@@ -1,14 +1,21 @@
 <script setup lang="ts">
-import { computed } from 'vue';
+import { computed, ref } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
-import { PhMagnifyingGlass, PhBell, PhCaretDown, PhCaretRight, PhSignOut } from '@phosphor-icons/vue';
+import { PhMagnifyingGlass, PhBell, PhCaretDown, PhCaretRight, PhSignOut, PhSun, PhMoon } from '@phosphor-icons/vue';
 import { useAuthStore } from '@/stores/auth';
 import { useWorkbenchStore } from '@/stores/workbench';
+import { currentTheme, toggleTheme } from '@/utils/theme';
 
 const route = useRoute();
 const router = useRouter();
 const auth = useAuthStore();
 const workbench = useWorkbenchStore();
+
+// 亮暗主题切换（默认深色为基线，浅色可选；持久化见 utils/theme.ts）
+const theme = ref(currentTheme());
+function onToggleTheme() {
+  theme.value = toggleTheme();
+}
 
 const crumbGroup = computed(() => (route.meta.group as string) || '');
 const crumbTitle = computed(() => {
@@ -35,11 +42,17 @@ function onLogout() {
       <span class="top-header__crumb-current">{{ crumbTitle }}</span>
     </div>
     <div class="top-header__right">
-      <PhMagnifyingGlass :size="20" class="top-header__icon" />
-      <span class="top-header__icon top-header__icon--bell">
-        <PhBell :size="20" />
+      <button class="top-header__icon-btn" :title="theme === 'dark' ? '切换为浅色' : '切换为深色'" type="button" @click="onToggleTheme">
+        <PhMoon v-if="theme === 'dark'" :size="18" />
+        <PhSun v-else :size="18" />
+      </button>
+      <button class="top-header__icon-btn" title="搜索" type="button">
+        <PhMagnifyingGlass :size="18" />
+      </button>
+      <button class="top-header__icon-btn top-header__icon-btn--bell" title="通知" type="button">
+        <PhBell :size="18" />
         <i class="top-header__dot" />
-      </span>
+      </button>
       <div class="top-header__profile">
         <div class="top-header__avatar">{{ avatarText }}</div>
         <div class="top-header__user">
@@ -48,7 +61,7 @@ function onLogout() {
         </div>
         <PhCaretDown :size="12" class="top-header__caret" />
       </div>
-      <button class="top-header__logout" title="退出登录" @click="onLogout">
+      <button class="top-header__icon-btn top-header__icon-btn--logout" title="退出登录" type="button" @click="onLogout">
         <PhSignOut :size="18" />
       </button>
     </div>
@@ -70,8 +83,8 @@ function onLogout() {
 .top-header__crumb {
   display: flex;
   align-items: center;
-  gap: 8px;
-  font-size: var(--font-size-base);
+  gap: 6px;
+  font-size: var(--font-size-md);
   color: var(--text-muted);
 }
 
@@ -81,34 +94,49 @@ function onLogout() {
 }
 
 .top-header__crumb-sep {
-  color: var(--text-muted);
+  color: var(--gray-400);
 }
 
 .top-header__right {
   display: flex;
   align-items: center;
-  gap: 20px;
+  gap: 4px;
 }
 
-.top-header__icon {
+.top-header__icon-btn {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: var(--radius-sm);
+  border: none;
+  background: transparent;
   color: var(--text-regular);
   cursor: pointer;
-  display: inline-flex;
-  position: relative;
+  transition:
+    background-color var(--duration-fast) var(--ease-out),
+    color var(--duration-fast) var(--ease-out);
 }
-
-.top-header__icon:hover {
-  color: var(--primary);
+.top-header__icon-btn:hover {
+  background: var(--gray-100);
+  color: var(--text-main);
+}
+.top-header__icon-btn--logout:hover {
+  background: var(--danger-50);
+  color: var(--danger);
 }
 
 .top-header__dot {
   position: absolute;
-  top: -2px;
-  right: -2px;
-  width: 8px;
-  height: 8px;
+  top: 7px;
+  right: 7px;
+  width: 6px;
+  height: 6px;
   background: var(--danger);
   border-radius: 50%;
+  border: 1.5px solid var(--bg-card);
 }
 
 .top-header__profile {
@@ -116,53 +144,44 @@ function onLogout() {
   align-items: center;
   gap: 10px;
   cursor: pointer;
-  padding-left: 20px;
-  border-left: 1px solid var(--border-color);
+  padding: 4px 8px 4px 12px;
+  margin: 0 8px;
+  border-radius: var(--radius-sm);
+  transition: background-color var(--duration-fast) var(--ease-out);
+}
+.top-header__profile:hover {
+  background: var(--gray-100);
 }
 
 .top-header__avatar {
-  width: 32px;
-  height: 32px;
+  width: 30px;
+  height: 30px;
   background: var(--primary);
   color: #fff;
   border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: var(--font-size-base);
+  font-size: var(--font-size-md);
   font-weight: 500;
+  flex-shrink: 0;
 }
 
 .top-header__name {
-  font-size: var(--font-size-base);
+  font-size: var(--font-size-md);
   font-weight: 500;
+  color: var(--text-main);
+  line-height: 1.3;
 }
 
 .top-header__role {
-  font-size: var(--font-size-sm);
+  font-size: var(--font-size-xs);
   color: var(--text-muted);
+  line-height: 1.3;
 }
 
 .top-header__caret {
   color: var(--text-muted);
-}
-
-.top-header__logout {
-  border: none;
-  background: transparent;
-  color: var(--text-muted);
-  cursor: pointer;
-  padding: 6px;
-  border-radius: var(--radius-sm);
-  display: flex;
-  align-items: center;
-  transition:
-    background 0.2s,
-    color 0.2s;
-}
-
-.top-header__logout:hover {
-  background: var(--border-color-light);
-  color: var(--danger);
+  margin-left: 2px;
 }
 </style>

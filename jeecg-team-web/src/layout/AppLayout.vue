@@ -34,9 +34,11 @@ const isChatMode = computed(() => workbench.mode === 'chat');
       <TopHeader />
       <main class="app-layout__content" :class="{ 'app-layout__content--chat': isChatMode }">
         <ChatWorkbench v-if="isChatMode" />
-        <router-view v-else v-slot="{ Component }">
-          <component :is="Component" class="page-fade" />
-        </router-view>
+        <div v-else class="app-layout__inner">
+          <router-view v-slot="{ Component }">
+            <component :is="Component" class="page-fade" />
+          </router-view>
+        </div>
       </main>
     </div>
   </div>
@@ -46,6 +48,7 @@ const isChatMode = computed(() => workbench.mode === 'chat');
 .app-layout {
   display: flex;
   height: 100vh;
+  background: var(--bg-body);
 }
 
 .app-layout__main {
@@ -61,6 +64,12 @@ const isChatMode = computed(() => workbench.mode === 'chat');
   padding: 24px;
 }
 
+/* 内容宽度约束：超宽屏下避免信息被拉散，居中留白 */
+.app-layout__inner {
+  max-width: var(--content-max-width);
+  margin: 0 auto;
+}
+
 /* 会话模式：会话工作台占满主区域，不再套内容内边距 */
 .app-layout__content--chat {
   padding: 0;
@@ -69,6 +78,6 @@ const isChatMode = computed(() => workbench.mode === 'chat');
 }
 
 .page-fade {
-  animation: fadeIn 0.3s ease;
+  animation: fadeIn var(--duration-slow) var(--ease-out);
 }
 </style>

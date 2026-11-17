@@ -4,7 +4,7 @@
 // 后端：轻量状态机审批（issue 待建，Flyway/team_approval 骨架由 Kimi Code 先行）
 import { reactive, ref } from 'vue';
 import { PhUploadSimple, PhInfo } from '@phosphor-icons/vue';
-import { submitApproval } from '@/api/team';
+import { submitApproval, PILOT_APPROVAL_STEPS } from '@/api/team';
 
 const categories = [
   { group: '考勤与假期', items: ['请假申请', '出差申请', '外出申请', '补卡申请', '加班申请'] },
@@ -16,11 +16,10 @@ const form = reactive({ title: '', reason: '', start: '', end: '' });
 const titleError = ref(false);
 const submitting = ref(false);
 const submitMsg = ref('');
+const submitErr = ref(false);
 
-const flowSteps = [
-  { name: '部门主管', role: '一级审批' },
-  { name: '分管副总', role: '二级审批' },
-];
+// 试点审批链（与后端守卫姓名比对口径一致）；模板体系延后后改由模板下发
+const flowSteps = [...PILOT_APPROVAL_STEPS];
 
 async function submit() {
   titleError.value = !form.title.trim();
@@ -28,20 +27,22 @@ async function submit() {
   if (titleError.value || submitting.value) return;
   submitting.value = true;
   try {
-    await submitApproval({
+    const res: any = await submitApproval({
       category: activeCategory.value,
       title: form.title.trim(),
       reason: form.reason.trim() || undefined,
       startDate: form.start || undefined,
       endDate: form.end || undefined,
     });
-    submitMsg.value = '已提交，进入审批流（可在审批中心跟进）';
+    submitMsg.value = `已提交，单号 ${res?.result?.code ?? ''}，进入审批流（可在审批中心跟进）`;
+    submitErr.value = false;
     form.title = '';
     form.reason = '';
     form.start = '';
     form.end = '';
   } catch (e: any) {
     submitMsg.value = e.message || '提交失败';
+    submitErr.value = true;
   } finally {
     submitting.value = false;
   }
@@ -99,23 +100,20 @@ async function submit() {
       </div>
       <div class="form-footer">
         <button class="btn btn-default" @click="form.title = ''; form.reason = ''; form.start = ''; form.end = ''; submitMsg = ''">清空</button>
-        <span v-if="submitMsg" class="submit-msg">{{ submitMsg }}</span>
+        <span v-if="submitMsg" class="submit-msg" :class="{ 'submit-msg--err': submitErr }">{{ submitMsg }}</span>
         <button class="btn btn-primary" :disabled="submitting" @click="submit">{{ submitting ? '提交中…' : '提交申请' }}</button>
       </div>
     </div>
 
     <div class="card flow-area">
       <div class="flow-header">审批流程</div>
-      <div class="flow-desc">默认按部门主管 → 常务副总经理 → 总经理审批</div>
+      <div class="flow-desc">按 部门主管 → 副总经理 两级审批（试点固定链，人员选择器接入后可调整）</div>
       <div class="flow-timeline">
-        <div v-for="(step, i) in flowSteps" :key="step.name" class="flow-step active">
+        <div v-for="(step, i) in flowSteps" :key="step.approverName" class="flow-step active">
           <div class="step-icon">{{ i + 1 }}</div>
           <div class="step-content">
-            <div class="step-name">
-              {{ step.name }}
-              <span class="step-change">更换</span>
-            </div>
-            <div class="step-role">{{ step.role }}</div>
+            <div class="step-name">{{ step.approverName }}</div>
+            <div class="step-role">{{ step.approverRole }}</div>
           </div>
         </div>
       </div>
@@ -160,6 +158,9 @@ async function submit() {
 .form-area {
   padding: 24px;
   overflow-y: auto;
+}
+.submit-msg--err {
+  color: var(--danger);
 }
 .submit-msg {
   margin-right: auto;

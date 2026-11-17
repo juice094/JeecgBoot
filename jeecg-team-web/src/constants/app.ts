@@ -14,3 +14,9 @@ export const RESULT_SUCCESS_CODE = 200;
 
 /** localStorage 键名：上次打开的工具模式页面（双模式"回到上次页面"用） */
 export const WORKBENCH_LAST_PATH_KEY = 'team_last_tool_path';
+
+/** localStorage 键名：亮暗主题偏好（'light' | 'dark'，缺省 dark——宿裁定深色为对比度基线） */
+export const THEME_STORAGE_KEY = 'team_theme';
+
+/** 主题缺省值：深色（GitHub Dark 令牌为基线，浅色为可选切换） */
+export const THEME_DEFAULT: 'light' | 'dark' = 'dark';
