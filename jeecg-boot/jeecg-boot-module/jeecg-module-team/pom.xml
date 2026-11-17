@@ -18,6 +18,11 @@
             <groupId>org.jeecgframework.boot3</groupId>
             <artifactId>jeecg-boot-base-core</artifactId>
         </dependency>
+        <dependency>
+            <groupId>org.glassfish.jaxb</groupId>
+            <artifactId>jaxb-runtime</artifactId>
+            <version>4.0.9</version>
+        </dependency>
     </dependencies>
 
 </project>

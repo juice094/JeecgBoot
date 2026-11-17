@@ -6,7 +6,7 @@ import org.jeecg.modules.team.entity.TeamTask;
 
 /**
  * @Description: 团队协作-任务 Mapper
- * @Author: Kimi Code (issue #2/#10)
+ * @Author: juice094 (issue #2/#10)
  * @Date: 2026-11-17
  * @Version: V1.0
  */
