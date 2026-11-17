@@ -23,6 +23,14 @@ spring:
     locations: classpath:flyway/sql/mysql
     # 是否关闭要清除已有库下的表功能,生产环境必须为true,否则会删库，非常重要！！！
     clean-disabled: true
+# 接口文档分组（Knife4j 顶部下拉）：团队协作=自研 team 模块；系统管理=jeecg 原生 sys 域
+# 未分组的接口留在 default 全量组。新增自研域时在此追加。
+springdoc:
+  group-configs:
+    - group: 团队协作
+      paths-to-match: /team/**
+    - group: 系统管理
+      paths-to-match: /sys/**
   servlet:
     multipart:
       max-file-size: 10MB
