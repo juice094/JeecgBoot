@@ -123,7 +123,14 @@ public class MailSyncEngine {
                 log.warn("[mail] 文件夹不支持 UID 语义，跳过 accountId={} remoteName={}", account.getId(), remoteName);
                 continue;
             }
-            syncFolder(account.getId(), MailCanonicalFolder.fromCode(canonicalCode), folder, state);
+            try {
+                syncFolder(account.getId(), MailCanonicalFolder.fromCode(canonicalCode), folder, state);
+            } catch (MessagingException e) {
+                // 单文件夹失败不拖垮整轮同步（如 QQ「其他文件夹」命名空间父目录无法 SELECT）；
+                // 错误不静默：记 warn 且该文件夹游标不回退，修复后下轮续跑
+                log.warn("[mail] 文件夹同步失败（跳过本轮） accountId={} remoteName={} error={}",
+                        account.getId(), remoteName, e.getMessage());
+            }
         }
     }
 

@@ -429,7 +429,12 @@ public class OaMailServiceImpl extends ServiceImpl<OaMailAccountMapper, OaMailAc
             }
             operator.appendToFolder(store, sentRemote, message, true);
         } catch (Exception e) {
-            log.warn("[mail] 发信归档已发送失败 accountId={}: {}", account.getId(), e.getMessage());
+            // QQ 等服务商 SMTP 自动落 Sent，APPEND 会返回 "already saved to Sent"——属预期行为，降级为 INFO
+            if (e.getMessage() != null && e.getMessage().contains("already saved to Sent")) {
+                log.info("[mail] 发信已由服务商自动归档已发送 accountId={}", account.getId());
+            } else {
+                log.warn("[mail] 发信归档已发送失败 accountId={}: {}", account.getId(), e.getMessage());
+            }
         } finally {
             closeStoreQuietly(store, account.getId());
         }
