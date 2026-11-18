@@ -29,6 +29,12 @@ export const layoutChildren: RouteRecordRaw[] = [
     meta: { title: '人事管理', owner: 'Ym3699', group: '管理', icon: 'hr' },
   },
   {
+    path: 'admin/role',
+    name: 'RoleManage',
+    component: () => import('@/modules/admin/views/RoleManage.vue'),
+    meta: { title: '角色管理', owner: 'Ym3699', group: '管理', icon: 'role' },
+  },
+  {
     path: 'admin/assets',
     name: 'AssetManage',
     component: () => import('@/modules/admin/views/AssetManage.vue'),
