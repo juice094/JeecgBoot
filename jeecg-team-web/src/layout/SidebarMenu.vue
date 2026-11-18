@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import {computed, type Component} from 'vue';
+import {computed, onBeforeUnmount, onMounted, type Component} from 'vue';
 import {useRoute, useRouter} from 'vue-router';
 
 import {
@@ -23,6 +23,7 @@ import {
   PhCaretRight,
 } from '@phosphor-icons/vue';
 import {useWorkbenchStore} from '@/stores/workbench';
+import {useBadgeStore} from '@/stores/badges';
 
 const route = useRoute();
 const router = useRouter();
@@ -33,7 +34,6 @@ interface MenuChild {
   path: string;
   owner: string;
   icon: string;
-  badge?: number;
 }
 
 interface MenuGroup {
@@ -70,7 +70,6 @@ const menus = computed<MenuGroup[]>(() => {
       owner?: string;
       group?: string;
       icon?: string;
-      badge?: number
     } | undefined;
     if (!meta?.group || !child.path) continue;
     if (!groups.has(meta.group)) groups.set(meta.group, []);
@@ -79,11 +78,18 @@ const menus = computed<MenuGroup[]>(() => {
       path: `/${child.path}`,
       owner: meta.owner ?? '',
       icon: meta.icon ?? '',
-      badge: meta.badge,
     });
   }
   return [...groups.entries()].map(([title, items]) => ({title, children: items}));
 });
+
+// 角标真实计数来自 badgeStore（原 meta.badge 硬编码占位已移除）；按路由 path 关联
+const badges = useBadgeStore();
+const badgeFor = (path: string): number =>
+  path === '/tools/approval' ? badges.approvalTodo : path === '/tools/email' ? badges.mailUnread : 0;
+
+onMounted(() => badges.startPolling());
+onBeforeUnmount(() => badges.stopPolling());
 
 const isActive = (path: string) => route.path === path;
 
@@ -117,7 +123,7 @@ function switchMode(mode: 'tool' | 'chat') {
         >
           <component :is="MENU_ICONS[item.icon] ?? PhSquaresFour" :size="18" class="menu-item__icon"/>
           <span v-if="!workbench.sidebarCollapsed" class="menu-item__text">{{ item.title }}</span>
-          <span v-if="item.badge && !workbench.sidebarCollapsed" class="menu-badge">{{ item.badge }}</span>
+          <span v-if="badgeFor(item.path) && !workbench.sidebarCollapsed" class="menu-badge">{{ badgeFor(item.path) }}</span>
         </router-link>
       </div>
     </nav>

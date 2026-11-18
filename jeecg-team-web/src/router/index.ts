@@ -6,8 +6,8 @@ import { useAuthStore } from '@/stores/auth';
  * 菜单树按原型复现（2026-11-17 宿裁定）：概览/管理/业务/工具 四组；
  * 在线沟通不在侧栏菜单——入口在侧栏底栏"会话"切换按钮（双模式设计）。
  *
- * meta.group = 侧栏分组；meta.icon = 图标 key（SidebarMenu 映射 Phosphor 组件）；
- * meta.badge = 菜单角标（数字，接口就绪后由真实计数替换）。
+ * meta.group = 侧栏分组；meta.icon = 图标 key（SidebarMenu 映射 Phosphor 组件）。
+ * 菜单角标不在此硬编码：由 stores/badges 按路由 path 供真实计数（60s 轮询）。
  */
 export const layoutChildren: RouteRecordRaw[] = [
   {
@@ -104,13 +104,13 @@ export const layoutChildren: RouteRecordRaw[] = [
     path: 'tools/approval',
     name: 'ApprovalCenter',
     component: () => import('@/modules/business/views/ApprovalCenter.vue'),
-    meta: { title: '审批中心', owner: 'juice094', group: '工具', icon: 'approval', badge: 34 },
+    meta: { title: '审批中心', owner: 'juice094', group: '工具', icon: 'approval' },
   },
   {
     path: 'tools/email',
     name: 'WorkEmail',
     component: () => import('@/modules/business/views/WorkEmail.vue'),
-    meta: { title: '工作邮箱', owner: 'juice094', group: '工具', icon: 'email', badge: 3, fullHeight: true },
+    meta: { title: '工作邮箱', owner: 'juice094', group: '工具', icon: 'email', fullHeight: true },
   },
   {
     path: 'tools/resource',
