@@ -110,7 +110,7 @@ export const layoutChildren: RouteRecordRaw[] = [
     path: 'tools/email',
     name: 'WorkEmail',
     component: () => import('@/modules/business/views/WorkEmail.vue'),
-    meta: { title: '工作邮箱', owner: 'juice094', group: '工具', icon: 'email', badge: 3 },
+    meta: { title: '工作邮箱', owner: 'juice094', group: '工具', icon: 'email', badge: 3, fullHeight: true },
   },
   {
     path: 'tools/resource',

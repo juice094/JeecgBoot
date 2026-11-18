@@ -510,6 +510,7 @@ onMounted(bootstrap);
   display: flex;
   flex-direction: column;
   gap: var(--spacing-lg);
+  min-height: 0;
 }
 
 .mail-notice {
@@ -542,6 +543,9 @@ onMounted(bootstrap);
 .mail-layout {
   display: grid;
   grid-template-columns: 220px 320px minmax(0, 1fr);
+  grid-template-rows: minmax(0, 1fr);
+  flex: 1;
+  min-height: 0;
   gap: 0;
   align-items: stretch;
 }
@@ -559,7 +563,7 @@ onMounted(bootstrap);
 .mail-list-pane {
   display: flex;
   flex-direction: column;
-  min-height: 420px;
+  min-height: 0;
   background: var(--bg-card);
   border: 1px solid var(--border-color-light);
   border-right: none;
@@ -591,6 +595,8 @@ onMounted(bootstrap);
   list-style: none;
   margin: 0;
   padding: 0;
+  flex: 1;
+  min-height: 0;
   overflow-y: auto;
 }
 
@@ -677,7 +683,8 @@ onMounted(bootstrap);
   align-items: center;
   justify-content: center;
   gap: var(--spacing-lg);
-  min-height: 420px;
+  min-height: 0;
+  overflow-y: auto;
   color: var(--text-placeholder);
   background: var(--bg-card);
   border: 1px solid var(--border-color-light);
@@ -686,9 +693,15 @@ onMounted(bootstrap);
   font-size: var(--font-size-base);
 }
 
+/* 阅读窗格在定格布局内去掉最小高度，正文由自身 overflow-y 接管 */
+:deep(.reader) {
+  min-height: 0;
+}
+
 @media (max-width: 1100px) {
   .mail-layout {
     grid-template-columns: 200px minmax(0, 1fr);
+    grid-template-rows: minmax(0, 1fr) minmax(0, 1fr);
   }
   .mail-list-pane {
     border-radius: 0 0 var(--radius-md) var(--radius-md);
@@ -697,5 +710,10 @@ onMounted(bootstrap);
   .mail-page .mail-layout > :last-child {
     grid-column: 1 / -1;
   }
+}
+
+/* 文件夹多时可内部滚动（组件根为 overflow:hidden 定高行） */
+:deep(.mail-folder-nav) {
+  overflow-y: auto;
 }
 </style>
