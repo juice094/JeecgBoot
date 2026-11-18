@@ -12,9 +12,6 @@ import javax.crypto.spec.SecretKeySpec;
 
 import org.apache.commons.lang3.StringUtils;
 import org.jeecg.common.exception.JeecgBootException;
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
-import org.springframework.stereotype.Component;
 
 /**
  * @Description: 邮件密码 AES 编解码（决策 D-20261117-76 试点实现）
@@ -25,11 +22,12 @@ import org.springframework.stereotype.Component;
  * （jeecg.mail.crypto.key）或环境变量（MAIL_CRYPTO_KEY），值为 Base64 编码的 32 字节密钥。
  * 每次加密使用随机 12 字节 IV，密文 = Base64(iv ++ cipher)。
  *
- * 可插拔：任何模块提供 MailPasswordCodec Bean 即替换本实现（国密/KMS 升级路径）。
+ * 可插拔：由 MailCodecConfig 以 @Bean + @ConditionalOnMissingBean 声明，
+ * 任何模块提供 MailPasswordCodec Bean 即替换本实现（国密/KMS 升级路径）。
+ * 注意：@ConditionalOnMissingBean 不可直接用在 @Component 扫描类上
+ *（Spring Boot 明确警告：条件评估早于组件扫描注册，会导致自身被跳过）。
  * 密钥未配置时构造即失败（fail-fast），禁止静默明文落库。
  */
-@Component
-@ConditionalOnMissingBean(MailPasswordCodec.class)
 public class AesMailPasswordCodec implements MailPasswordCodec {
 
     private static final String CIPHER_ALGORITHM = "AES/GCM/NoPadding";
@@ -41,7 +39,7 @@ public class AesMailPasswordCodec implements MailPasswordCodec {
     private final SecretKey key;
     private final SecureRandom random = new SecureRandom();
 
-    public AesMailPasswordCodec(@Value("${jeecg.mail.crypto.key:${MAIL_CRYPTO_KEY:}}") String base64Key) {
+    public AesMailPasswordCodec(String base64Key) {
         if (StringUtils.isBlank(base64Key)) {
             throw new IllegalStateException("邮件密码密钥未配置：请设置 jeecg.mail.crypto.key 或环境变量 MAIL_CRYPTO_KEY"
                     + "（Base64 编码的 256 位密钥，可用 keytool/openssl 生成）");

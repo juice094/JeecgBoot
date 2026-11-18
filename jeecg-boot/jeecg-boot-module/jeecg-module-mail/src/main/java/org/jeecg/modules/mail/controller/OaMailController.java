@@ -150,15 +150,17 @@ public class OaMailController {
     @AutoLog(value = "OA邮件-消息列表")
     @Operation(summary = "消息列表（只查索引表，不触发 IMAP；归属校验已接入）",
             description = "错误场景：绑定不存在；越权被拒；canonicalFolder 非法（可选 Inbox/Sent/Drafts/"
-                    + "Trash/Spam/Archive）。B-2 功能范围，正文按需 FETCH 属 B-3。")
+                    + "Trash/Spam/Archive）；keyword 超 100 字符。keyword 仅匹配主题，正文搜索属 B-3。")
     @RequiresPermissions("team:mail:message:list")
     @GetMapping("/messages")
     public Result<IPage<OaMailMessageIndex>> messages(
             @Parameter(description = "绑定 id", required = true) @RequestParam(name = "accountId") String accountId,
             @Parameter(description = "规范文件夹（可选）") @RequestParam(name = "canonicalFolder", required = false) String canonicalFolder,
+            @Parameter(description = "主题关键字（可选，LIKE 匹配）") @RequestParam(name = "keyword", required = false) String keyword,
+            @Parameter(description = "仅未读（可选，true 时生效）") @RequestParam(name = "unreadOnly", required = false) Boolean unreadOnly,
             @Parameter(description = "页码", example = "1") @RequestParam(name = "pageNo", defaultValue = "1") Integer pageNo,
             @Parameter(description = "每页条数", example = "10") @RequestParam(name = "pageSize", defaultValue = "10") Integer pageSize) {
-        return Result.OK(oaMailService.pageMessages(accountId, canonicalFolder, pageNo, pageSize));
+        return Result.OK(oaMailService.pageMessages(accountId, canonicalFolder, keyword, unreadOnly, pageNo, pageSize));
     }
 
     /**

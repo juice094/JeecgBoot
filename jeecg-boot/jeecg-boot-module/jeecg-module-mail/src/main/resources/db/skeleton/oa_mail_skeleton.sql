@@ -1,6 +1,8 @@
 -- OA 邮件体系后端骨架建表（原型线，未立项）
--- 注意：本脚本随骨架落库，但 jeecg-module-mail 未注册进 jeecg-system-start；
---       当前后端启动仍会执行本脚本（Flyway 扫描目录不区分模块），属预期内的“骨架表存在、端点不生效”。
+-- 注意：本脚本位于 db/skeleton/，不在 Flyway 扫描目录内；system-start 的
+--       spring.flyway.locations 仅为 classpath:flyway/sql/mysql，因此注册前本脚本不会被自动执行，
+--       这属于预期隔离（骨架表不存在、端点也不生效）。立项注册时须把本脚本改写为正式 Flyway 脚本，
+--       放入 flyway/sql/mysql 并取号。
 -- 取号说明：_4 已被 team_audit_log 占用；_5 在 hold/ 隔离件中未入库，正式立项时若启用需重新取号，避免冲突。
 
 CREATE TABLE IF NOT EXISTS system_mail_account (
@@ -120,3 +122,36 @@ CREATE TABLE IF NOT EXISTS oa_mail_message_index (
     UNIQUE KEY uk_mail_index_uid (account_id, canonical_folder, imap_uid),
     KEY idx_mail_index_list (account_id, canonical_folder, received_time DESC)
 ) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COMMENT = 'OA邮件-员工邮箱消息索引（骨架）';
+
+CREATE TABLE IF NOT EXISTS oa_mail_folder_state (
+    id VARCHAR(32) NOT NULL COMMENT '主键',
+    account_id VARCHAR(32) NOT NULL COMMENT '员工邮箱账号 id',
+    remote_name VARCHAR(255) NOT NULL COMMENT '远端文件夹名',
+    canonical VARCHAR(32) DEFAULT NULL COMMENT '规范文件夹；空=未识别，需人工映射，同步不得静默跳过',
+    last_uid BIGINT DEFAULT NULL COMMENT '同步游标（error 时不回退，下次续跑）',
+    create_by VARCHAR(50) DEFAULT NULL,
+    create_time DATETIME DEFAULT NULL,
+    update_by VARCHAR(50) DEFAULT NULL,
+    update_time DATETIME DEFAULT NULL,
+    sys_org_code VARCHAR(64) DEFAULT NULL,
+    sys_tenant_id INT DEFAULT NULL,
+    PRIMARY KEY (id),
+    UNIQUE KEY uk_mail_folder_remote (account_id, remote_name),
+    KEY idx_mail_folder_canonical (account_id, canonical)
+) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COMMENT = 'OA邮件-文件夹同步状态（骨架）';
+
+CREATE TABLE IF NOT EXISTS oa_mail_biz_link (
+    id VARCHAR(32) NOT NULL COMMENT '主键',
+    message_index_id VARCHAR(32) NOT NULL COMMENT '邮件索引 id',
+    biz_type VARCHAR(64) NOT NULL COMMENT '业务类型（team_task / team_approval 等）',
+    biz_id VARCHAR(64) NOT NULL COMMENT '业务单据 id',
+    create_by VARCHAR(50) DEFAULT NULL,
+    create_time DATETIME DEFAULT NULL,
+    update_by VARCHAR(50) DEFAULT NULL,
+    update_time DATETIME DEFAULT NULL,
+    sys_org_code VARCHAR(64) DEFAULT NULL,
+    sys_tenant_id INT DEFAULT NULL,
+    PRIMARY KEY (id),
+    KEY idx_mail_biz_link_msg (message_index_id),
+    KEY idx_mail_biz_link_biz (biz_type, biz_id)
+) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COMMENT = 'OA邮件-邮件与业务关联（骨架）';

@@ -64,8 +64,16 @@ public interface IOaMailService extends IService<OaMailAccount>, MailAccountBind
 
     /**
      * 列表查询（只查索引表，不触发 IMAP LIST）。
+     *
+     * @param accountId       绑定 id（必填）
+     * @param canonicalFolder 规范文件夹（可空=全部）
+     * @param keyword         主题关键字（可空；LIKE 匹配，试点量级可接受全表扫描）
+     * @param unreadOnly      仅未读（null/false 表示不筛选）
+     * @param pageNo          页码
+     * @param pageSize        每页条数
      */
-    IPage<OaMailMessageIndex> pageMessages(String accountId, String canonicalFolder, Integer pageNo, Integer pageSize);
+    IPage<OaMailMessageIndex> pageMessages(String accountId, String canonicalFolder, String keyword,
+            Boolean unreadOnly, Integer pageNo, Integer pageSize);
 
     // ---- MailAccountBindingApi 对齐说明 ----
     // bind(MailAccountBindReqDTO)        -> 绑定：双测连通过才落库（B-1 全量）

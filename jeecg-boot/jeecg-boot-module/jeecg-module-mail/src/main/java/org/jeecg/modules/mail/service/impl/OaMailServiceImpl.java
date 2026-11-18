@@ -213,8 +213,8 @@ public class OaMailServiceImpl extends ServiceImpl<OaMailAccountMapper, OaMailAc
     }
 
     @Override
-    public IPage<OaMailMessageIndex> pageMessages(String accountId, String canonicalFolder, Integer pageNo,
-            Integer pageSize) {
+    public IPage<OaMailMessageIndex> pageMessages(String accountId, String canonicalFolder, String keyword,
+            Boolean unreadOnly, Integer pageNo, Integer pageSize) {
         if (StringUtils.isBlank(accountId)) {
             throw new JeecgBootException("accountId 不能为空");
         }
@@ -227,6 +227,18 @@ public class OaMailServiceImpl extends ServiceImpl<OaMailAccountMapper, OaMailAc
                 throw new JeecgBootException("非法文件夹: " + canonicalFolder);
             }
             wrapper.eq(OaMailMessageIndex::getCanonicalFolder, folder.getCode());
+        }
+        // 关键字：主题 LIKE；试点量级不建全文索引，走 idx_mail_index_list 后过滤
+        if (StringUtils.isNotBlank(keyword)) {
+            String trimmed = keyword.trim();
+            if (trimmed.length() > 100) {
+                throw new JeecgBootException("关键字过长（上限 100 字符）");
+            }
+            wrapper.like(OaMailMessageIndex::getSubject, trimmed);
+        }
+        // 未读筛选：仅当显式传 true 时生效，false/null 均不筛选
+        if (Boolean.TRUE.equals(unreadOnly)) {
+            wrapper.eq(OaMailMessageIndex::getReadFlag, false);
         }
         wrapper.orderByDesc(OaMailMessageIndex::getReceivedTime);
         return indexMapper.selectPage(new Page<>(pageNo == null ? 1 : pageNo, pageSize == null ? 10 : pageSize),

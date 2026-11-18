@@ -18,16 +18,25 @@ import org.jeecg.modules.mail.delivery.MailConnectFailedException;
 import org.jeecg.modules.mail.dto.ConnectionTestResult;
 import org.jeecg.modules.mail.dto.MailAccountBindReqDTO;
 import org.jeecg.modules.mail.dto.MailServerConfig;
+import java.util.Map;
+
 import org.jeecg.modules.mail.entity.OaMailAccount;
 import org.jeecg.modules.mail.mapper.OaMailAccountMapper;
+import org.jeecg.modules.mail.mapper.OaMailMessageIndexMapper;
 import org.jeecg.modules.mail.support.AesMailPasswordCodec;
 import org.jeecg.modules.mail.support.MailPasswordCodec;
+import org.apache.ibatis.builder.MapperBuilderAssistant;
+import org.jeecg.modules.mail.entity.OaMailMessageIndex;
+import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 import org.springframework.test.util.ReflectionTestUtils;
 
+import com.baomidou.mybatisplus.core.MybatisConfiguration;
 import com.baomidou.mybatisplus.core.conditions.Wrapper;
+import com.baomidou.mybatisplus.core.metadata.TableInfoHelper;
+import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 
 /**
  * @Description: OaMailServiceImpl B-1 单测（Mapper/Connector 走 Mockito，codec 用真实 AES）
@@ -43,9 +52,21 @@ class OaMailServiceImplTest {
             .encodeToString("0123456789abcdef0123456789abcdef".getBytes());
 
     private OaMailAccountMapper mapper;
+    private OaMailMessageIndexMapper indexMapper;
     private ImapSmtpConnector connector;
     private MailPasswordCodec codec;
     private OaMailServiceImpl service;
+
+    /**
+     * LambdaQueryWrapper 解析 lambda 依赖 MyBatis-Plus 的 TableInfo 缓存；
+     * 纯单测无 Spring 容器，需手动初始化，否则 getSqlSegment() 抛
+     * "can not find lambda cache for this entity"。
+     */
+    @BeforeAll
+    static void initTableInfo() {
+        MapperBuilderAssistant assistant = new MapperBuilderAssistant(new MybatisConfiguration(), "");
+        TableInfoHelper.initTableInfo(assistant, OaMailMessageIndex.class);
+    }
 
     @BeforeEach
     void setUp() {
@@ -54,7 +75,8 @@ class OaMailServiceImplTest {
         codec = new AesMailPasswordCodec(TEST_KEY);
         service = new OaMailServiceImpl();
         ReflectionTestUtils.setField(service, "baseMapper", mapper);
-        ReflectionTestUtils.setField(service, "indexMapper", mock(org.jeecg.modules.mail.mapper.OaMailMessageIndexMapper.class));
+        indexMapper = mock(OaMailMessageIndexMapper.class);
+        ReflectionTestUtils.setField(service, "indexMapper", indexMapper);
         ReflectionTestUtils.setField(service, "connector", connector);
         ReflectionTestUtils.setField(service, "passwordCodec", codec);
         ReflectionTestUtils.setField(service, "ownershipGuard", new OaMailOwnershipGuard());
@@ -170,6 +192,65 @@ class OaMailServiceImplTest {
         assertEquals(existing.getImapPassword(), updated.getImapPassword());
         assertEquals("new-smtp", codec.decode(updated.getSmtpPassword()));
         assertEquals("old-imap", codec.decode(updated.getImapPassword()));
+    }
+
+    private OaMailAccount ownedAccount(String id) {
+        OaMailAccount acc = new OaMailAccount();
+        acc.setId(id);
+        acc.setEmail("owner@example.com");
+        return acc;
+    }
+
+    @Test
+    void pageMessages_keywordAndUnread_produceLikeAndReadFlagFilters() {
+        when(mapper.selectById("acc-1")).thenReturn(ownedAccount("acc-1"));
+        when(indexMapper.selectPage(any(), any(Wrapper.class))).thenReturn(new Page<>());
+
+        service.pageMessages("acc-1", "Inbox", "发票", true, 1, 10);
+
+        ArgumentCaptor<Wrapper> captor = ArgumentCaptor.forClass(Wrapper.class);
+        verify(indexMapper).selectPage(any(), captor.capture());
+        String sql = captor.getValue().getSqlSegment();
+        // 关键字 -> LIKE 片段；未读 -> read_flag 等值条件
+        assertTrue(sql.toLowerCase().contains("like"),
+                "keyword 应生成 LIKE 条件，实际 SQL: " + sql);
+        assertTrue(sql.toLowerCase().contains("read_flag"),
+                "unreadOnly=true 应追加 read_flag 条件，实际 SQL: " + sql);
+    }
+
+    @Test
+    void pageMessages_noKeywordNoUnread_onlyAccountAndFolderFilters() {
+        when(mapper.selectById("acc-1")).thenReturn(ownedAccount("acc-1"));
+        when(indexMapper.selectPage(any(), any(Wrapper.class))).thenReturn(new Page<>());
+
+        service.pageMessages("acc-1", "Inbox", null, null, 1, 10);
+
+        ArgumentCaptor<Wrapper> captor = ArgumentCaptor.forClass(Wrapper.class);
+        verify(indexMapper).selectPage(any(), captor.capture());
+        String sql = captor.getValue().getSqlSegment().toLowerCase();
+        // 仅 accountId + canonicalFolder 两个条件
+        assertTrue(!sql.contains("read_flag"),
+                "unreadOnly 为空时不应追加 read_flag 条件，实际 SQL: " + sql);
+        assertTrue(!sql.contains("like"),
+                "keyword 为空时不应生成 LIKE 条件，实际 SQL: " + sql);
+    }
+
+    @Test
+    void pageMessages_keywordOver100_rejectedBeforeQuery() {
+        when(mapper.selectById("acc-1")).thenReturn(ownedAccount("acc-1"));
+        String tooLong = "a".repeat(101);
+
+        JeecgBootException ex = assertThrows(JeecgBootException.class,
+                () -> service.pageMessages("acc-1", null, tooLong, null, 1, 10));
+        assertTrue(ex.getMessage().contains("关键字过长"));
+        verify(indexMapper, never()).selectPage(any(), any());
+    }
+
+    @Test
+    void pageMessages_blankAccountId_rejected() {
+        JeecgBootException ex = assertThrows(JeecgBootException.class,
+                () -> service.pageMessages("  ", null, null, null, 1, 10));
+        assertTrue(ex.getMessage().contains("accountId 不能为空"));
     }
 
     @Test
