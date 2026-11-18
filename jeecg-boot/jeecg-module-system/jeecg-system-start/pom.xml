@@ -30,6 +30,12 @@
             <artifactId>jeecg-module-team</artifactId>
             <version>${jeecgboot.version}</version>
         </dependency>
+        <!-- OA 邮件体系模块（系统发信 + 员工邮箱） -->
+        <dependency>
+            <groupId>org.jeecgframework.boot3</groupId>
+            <artifactId>jeecg-module-mail</artifactId>
+            <version>${jeecgboot.version}</version>
+        </dependency>
         
         <!-- flyway 数据库自动升级 -->
         <dependency>
