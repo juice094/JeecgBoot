@@ -1,16 +1,14 @@
 -- =============================================================================
--- 团队协作 - 审批 v2（DRAFT，待 lead 取号）
--- 号说明：V3.9.6_7 已被 team_issue_detail 占用；_8/_9 由 OA 邮件体系暂定；
---         本脚本暂定 _10，若 lead 另行分配则以分配号为准。
--- 落地方式：取号后改名为 V3.9.6_<号>__team_approval_v2.sql，移入
---           jeecg-system-start/src/main/resources/flyway/sql/mysql/。
--- 试点环境 Flyway 被排除，脚本需手动执行并登记 flyway_schema_history。
+-- 团队协作 - 审批 v2（2026-11-18 取号转正：_10；原 docs/sql 下 DRAFT 已移除）
+-- 试点环境 Flyway 自动装配被排除，本脚本手动执行并登记 flyway_schema_history。
 --
 -- 变更内容：
 --   1) team_approval_step 补 approver_id，修正按姓名匹配审批人的缺陷
 --   2) 新增审批模板表 team_approval_template / team_approval_template_step
 --   3) 状态机扩展为 draft/pending/returned/approved/rejected/canceled
 --      （代码层枚举 TeamApprovalStatus，落库仍为 varchar(16)）
+--   4) 字段模板：team_approval 加 form_data JSON + amount DECIMAL(12,2)；
+--      team_approval_template 加 field_schema JSON
 --
 -- 兼容性：新增列均可空；现有数据不回填，approver_id 为空的旧步骤按姓名兜底。
 -- 幂等性：ADD COLUMN / CREATE INDEX 非幂等，重复执行会报错，符合 Flyway 一次执行语义。
@@ -100,4 +98,3 @@ ALTER TABLE team_approval_template
 --   required  是否必填
 --   options   select/multiselect 的候选值数组
 --   min/max   number 的取值范围
-
