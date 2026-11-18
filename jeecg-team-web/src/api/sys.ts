@@ -190,9 +190,11 @@ export function listRoles(
   return http.get<any, PageResult<SysRole>>('/sys/role/list', { params });
 }
 
-/** 全部角色（下拉用）GET /sys/role/queryall */
-export function listAllRoles(params: Record<string, unknown> = {}): Promise<SysRole[]> {
-  return http.get<any, SysRole[]>('/sys/role/queryall', { params });
+/** 全部角色（下拉用）GET /sys/role/queryall（返回 { result: SysRole[] }，这里解包） */
+export async function listAllRoles(params: Record<string, unknown> = {}): Promise<SysRole[]> {
+  const data: any = await http.get('/sys/role/queryall', { params });
+  const result = data?.result;
+  return Array.isArray(result) ? result : [];
 }
 
 /** 新增/编辑角色 POST /sys/role/add | /sys/role/edit（旧 saveOrUpdateRole 同为 POST） */
@@ -260,12 +262,13 @@ export function queryRolePermission(
   );
 }
 
-/** 保存角色权限 POST /sys/permission/saveRolePermission（后端契约：permissionIds 驼峰、lastpermissionids 全小写，已实证） */
+/** 保存角色权限 POST /sys/permission/saveRolePermission（后端 SysPermissionController:601 读
+ *  json.getString("lastpermissionIds")——小写 p、大写 I；FastJSON getString 大小写敏感，
+ *  键名错则取消勾选不生效） */
 export function saveRolePermission(params: {
   roleId: string;
   permissionIds: string;
-  /** 后端读 json.getString("lastpermissionids")，全小写；传错键会导致取消勾选不生效 */
-  lastpermissionids?: string;
+  lastpermissionIds?: string;
 }): Promise<any> {
   return http.post('/sys/permission/saveRolePermission', params);
 }

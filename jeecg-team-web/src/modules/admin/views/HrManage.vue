@@ -36,6 +36,11 @@ import { usePermission } from '@/utils/permission';
 
 const { hasPermission } = usePermission();
 
+/** jeecg Result 包装在 HTTP 200 里也可能 success:false，写操作必须显式判定 */
+function checkOk(res: any) {
+  if (res && res.success === false) throw new Error(res.message || '操作失败');
+}
+
 /* ---------------- 列表数据 ---------------- */
 const tree = ref<DepartNode[]>([]);
 const users = ref<SysUser[]>([]);
@@ -160,7 +165,7 @@ async function toggleFrozen(user: SysUser) {
   const verb = target === 2 ? '冻结' : '解冻';
   if (!window.confirm('确认' + verb + '用户「' + (user.realname || user.username) + '」吗？')) return;
   try {
-    await frozenBatch({ ids: user.id, status: target });
+    await frozenBatch({ ids: user.id, status: target }).then(checkOk);
     await loadUsers();
   } catch (e: any) {
     alert(verb + '失败：' + (e.message || '未知错误'));
@@ -247,7 +252,13 @@ async function submitUser(values: Record<string, any>) {
     const payload: Record<string, any> = { ...values };
     if (isUpdate) payload.id = editingUser.value!.id;
     delete payload.confirmPassword;
-    await saveOrUpdateUser(payload, isUpdate);
+    // sys_user/add 对空串字段一律 500（实测：sex/status int 绑定、orgCode 关联校验、
+    // phone/email/workNo 唯一索引均不接受 ''）；提交前剔除全部空值。
+    // 取舍：因此「把已有字段改回空」在 P0 不生效（字段缺省=不动），记报告。
+    for (const k of Object.keys(payload)) {
+      if (payload[k] === '' || payload[k] === null || payload[k] === undefined) delete payload[k];
+    }
+    checkOk(await saveOrUpdateUser(payload, isUpdate));
     userModalOpen.value = false;
     await loadUsers();
     await loadTree();
@@ -261,7 +272,7 @@ async function submitUser(values: Record<string, any>) {
 async function removeUser(user: SysUser) {
   if (!window.confirm('确认删除用户「' + (user.realname || user.username) + '」吗？')) return;
   try {
-    await deleteUser(user.id);
+    checkOk(await deleteUser(user.id));
     await loadUsers();
     await loadTree();
   } catch (e: any) {
@@ -273,7 +284,7 @@ async function removeUser(user: SysUser) {
 async function resetPwd(user: SysUser) {
   if (!window.confirm('确认将用户「' + (user.realname || user.username) + '」的密码重置为系统默认密码吗？')) return;
   try {
-    await resetUserPassword({ usernames: user.username });
+    checkOk(await resetUserPassword({ usernames: user.username }));
   } catch (e: any) {
     alert('重置失败：' + (e.message || '未知错误'));
   }
@@ -316,10 +327,10 @@ async function submitRoleAssign(values: Record<string, any>) {
     const toAdd = selected.filter((id) => !currentRoleIds.value.includes(id));
     const toRemove = currentRoleIds.value.filter((id) => !selected.includes(id));
     for (const roleId of toAdd) {
-      await addUserRole({ roleId, userIdList: [roleUser.value.id] });
+      checkOk(await addUserRole({ roleId, userIdList: [roleUser.value.id] }));
     }
     for (const roleId of toRemove) {
-      await deleteUserRole({ roleId, userId: roleUser.value.id });
+      checkOk(await deleteUserRole({ roleId, userId: roleUser.value.id }));
     }
     roleModalOpen.value = false;
   } catch (e: any) {
@@ -400,7 +411,7 @@ async function submitDept(values: Record<string, any>) {
     const isUpdate = !!editingDept.value;
     const payload: Record<string, any> = { ...values };
     if (isUpdate) payload.id = editingDept.value!.id;
-    await saveOrUpdateDepart(payload, isUpdate);
+    checkOk(await saveOrUpdateDepart(payload, isUpdate));
     deptModalOpen.value = false;
     await loadTree();
   } catch (e: any) {
@@ -413,7 +424,7 @@ async function submitDept(values: Record<string, any>) {
 async function removeDept(node: DepartNode) {
   if (!window.confirm('确认删除部门「' + (node.departName ?? node.id) + '」吗？')) return;
   try {
-    await deleteDepart(node.id);
+    checkOk(await deleteDepart(node.id));
     await loadTree();
   } catch (e: any) {
     alert('删除失败：' + (e.message || '未知错误'));

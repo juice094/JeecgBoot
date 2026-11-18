@@ -23,6 +23,11 @@ import { usePermission } from '@/utils/permission';
 
 const { hasPermission } = usePermission();
 
+/** jeecg Result 包装在 HTTP 200 里也可能 success:false，写操作必须显式判定 */
+function checkOk(res: any) {
+  if (res && res.success === false) throw new Error(res.message || '操作失败');
+}
+
 /* ---------------- 列表 ---------------- */
 const roles = ref<SysRole[]>([]);
 const total = ref(0);
@@ -124,7 +129,7 @@ async function submitRole(values: Record<string, any>) {
     }
     const payload: Record<string, any> = { ...values };
     if (isUpdate) payload.id = editingRole.value!.id;
-    await saveOrUpdateRole(payload, isUpdate);
+    checkOk(await saveOrUpdateRole(payload, isUpdate));
     modalOpen.value = false;
     await loadRoles();
   } catch (e: any) {
@@ -137,7 +142,7 @@ async function submitRole(values: Record<string, any>) {
 async function removeRole(role: SysRole) {
   if (!window.confirm('确认删除角色「' + role.roleName + '」吗？')) return;
   try {
-    await deleteRole(role.id);
+    checkOk(await deleteRole(role.id));
     await loadRoles();
   } catch (e: any) {
     alert('删除失败：' + (e.message || '未知错误'));
@@ -250,11 +255,13 @@ async function submitPermission() {
   if (!permRole.value || permSaving.value) return;
   permSaving.value = true;
   try {
-    await saveRolePermission({
-      roleId: permRole.value.id,
-      permissionIds: [...checkedKeys.value].join(','),
-      lastpermissionids: defaultCheckedKeys.value.join(','),
-    });
+    checkOk(
+      await saveRolePermission({
+        roleId: permRole.value.id,
+        permissionIds: [...checkedKeys.value].join(','),
+        lastpermissionIds: defaultCheckedKeys.value.join(','),
+      })
+    );
     permOpen.value = false;
   } catch (e: any) {
     alert('保存失败：' + (e.message || '未知错误'));
