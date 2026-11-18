@@ -47,7 +47,8 @@ const emit = defineEmits<{ (e: 'update:modelValue', value: 'open' | 'closed'): v
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: var(--spacing-md);
+  flex-wrap: wrap;
+  gap: var(--spacing-sm) var(--spacing-md);
   padding: var(--spacing-sm) var(--spacing-lg);
   background: var(--bg-card);
   border: 1px solid var(--border-color);
@@ -59,6 +60,7 @@ const emit = defineEmits<{ (e: 'update:modelValue', value: 'open' | 'closed'): v
 .issue-list-header__left {
   display: flex;
   gap: var(--spacing-lg);
+  flex-wrap: wrap;
 }
 
 .issue-list-header__tab {
@@ -85,6 +87,7 @@ const emit = defineEmits<{ (e: 'update:modelValue', value: 'open' | 'closed'): v
 .issue-list-header__right {
   display: flex;
   align-items: center;
-  gap: var(--spacing-md);
+  flex-wrap: wrap;
+  gap: var(--spacing-sm) var(--spacing-md);
 }
 </style>

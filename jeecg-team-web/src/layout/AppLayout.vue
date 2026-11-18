@@ -68,6 +68,12 @@ const isFullHeight = computed(() => route.meta.fullHeight === true);
   padding: 24px;
 }
 
+@media (max-width: 768px) {
+  .app-layout__content {
+    padding: 16px;
+  }
+}
+
 /* 内容宽度约束：超宽屏下避免信息被拉散，居中留白 */
 .app-layout__inner {
   max-width: var(--content-max-width);

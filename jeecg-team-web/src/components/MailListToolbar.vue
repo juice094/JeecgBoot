@@ -21,7 +21,8 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: var(--spacing-md);
+  flex-wrap: wrap;
+  gap: 4px var(--spacing-md);
   min-height: 40px;
   padding: 4px var(--spacing-lg);
   background: var(--bg-card);
@@ -33,6 +34,7 @@
 .cmd-bar__left {
   display: flex;
   align-items: center;
+  flex-wrap: wrap;
   gap: 2px;
   min-width: 0;
 }
@@ -40,8 +42,8 @@
 .cmd-bar__right {
   display: flex;
   align-items: center;
+  flex-wrap: wrap;
   gap: var(--spacing-sm);
-  flex-shrink: 0;
   font-size: var(--font-size-sm);
   color: var(--text-muted);
 }

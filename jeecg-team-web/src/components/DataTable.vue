@@ -172,6 +172,7 @@ function goPage(p: number) {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  flex-wrap: wrap;
   gap: 12px;
   font-size: 12px;
   color: var(--text-muted);
@@ -179,6 +180,7 @@ function goPage(p: number) {
 .dt__pages {
   display: flex;
   align-items: center;
+  flex-wrap: wrap;
   gap: 4px;
 }
 .dt__page-btn {

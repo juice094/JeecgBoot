@@ -76,6 +76,7 @@ function onLogout() {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  gap: var(--spacing-md);
   padding: 0 24px;
   flex-shrink: 0;
 }
@@ -86,21 +87,32 @@ function onLogout() {
   gap: 6px;
   font-size: var(--font-size-md);
   color: var(--text-muted);
+  min-width: 0;
+  overflow: hidden;
+}
+
+.top-header__crumb span {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .top-header__crumb-current {
   color: var(--text-main);
   font-weight: 500;
+  flex-shrink: 1;
 }
 
 .top-header__crumb-sep {
   color: var(--gray-400);
+  flex-shrink: 0;
 }
 
 .top-header__right {
   display: flex;
   align-items: center;
   gap: 4px;
+  flex-shrink: 0;
 }
 
 .top-header__icon-btn {
@@ -167,21 +179,45 @@ function onLogout() {
   flex-shrink: 0;
 }
 
+.top-header__user {
+  min-width: 0;
+}
 .top-header__name {
   font-size: var(--font-size-md);
   font-weight: 500;
   color: var(--text-main);
   line-height: 1.3;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .top-header__role {
   font-size: var(--font-size-xs);
   color: var(--text-muted);
   line-height: 1.3;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .top-header__caret {
   color: var(--text-muted);
   margin-left: 2px;
+  flex-shrink: 0;
+}
+
+/* 窄窗口：压缩两侧留白，隐藏角色行避免用户信息挤压图标区 */
+@media (max-width: 768px) {
+  .top-header {
+    padding: 0 12px;
+  }
+  .top-header__role {
+    display: none;
+  }
+  .top-header__profile {
+    margin: 0 4px;
+    padding: 4px 6px 4px 8px;
+  }
 }
 </style>

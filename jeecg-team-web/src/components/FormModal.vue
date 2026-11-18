@@ -212,6 +212,12 @@ function submit() {
   gap: 16px;
   overflow-y: auto;
 }
+
+@media (max-width: 640px) {
+  .fm__body {
+    grid-template-columns: 1fr;
+  }
+}
 .fm__item {
   display: flex;
   flex-direction: column;

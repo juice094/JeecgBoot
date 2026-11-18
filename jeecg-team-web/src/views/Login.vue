@@ -64,6 +64,7 @@ async function onSubmit() {
 
 .login-card {
   width: 380px;
+  max-width: calc(100vw - 32px);
   background: var(--bg-card);
   border-radius: 12px;
   box-shadow: var(--shadow-lg);

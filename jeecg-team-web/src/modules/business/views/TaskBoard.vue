@@ -826,7 +826,10 @@ function openDetail(task: Task) {
   gap: var(--spacing-lg);
 }
 
-/* 响应式：窄屏看板降为单列 */
+/* 响应式：中等宽度看板降为双列，窄屏单列 */
+@media (max-width: 1100px) {
+  .board { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
 @media (max-width: 768px) {
   .board { grid-template-columns: 1fr; }
   .form-row { grid-template-columns: 1fr; }
