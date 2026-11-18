@@ -32,6 +32,13 @@ ul {
 button {
   font-family: inherit;
   font-size: inherit;
+  /* UA 默认给 <button> 灰色底/边框，裸按钮（非 .btn 类）会漏出：
+     统一清零，由各组件样式自取令牌（对齐 GitHub reset 口径） */
+  color: inherit;
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
 }
 
 :focus-visible {

@@ -66,7 +66,7 @@ async function onSubmit() {
   width: 380px;
   background: var(--bg-card);
   border-radius: 12px;
-  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.2);
+  box-shadow: var(--shadow-lg);
   padding: 36px 32px 24px;
 }
 

@@ -12,8 +12,14 @@ export interface Approval {
   category: string;
   title: string;
   reason?: string;
-  status: 'pending' | 'approved' | 'rejected';
+  status: 'draft' | 'pending' | 'returned' | 'approved' | 'rejected' | 'canceled';
+  applicantId?: string;
   applicantName?: string;
+  currentStep?: number;
+  /** 类别专属字段值（JSON 字符串，按模板 fieldSchema 校验） */
+  formData?: string;
+  /** 金额（后端从 formData.amount 提取） */
+  amount?: number;
   createTime?: string;
 }
 
@@ -29,6 +35,7 @@ export interface Task {
   assigneeName?: string;
   dueDate?: string;
   sortNo?: number;
+  createBy?: string;
   createTime?: string;
 }
 
@@ -62,8 +69,19 @@ export interface Bug {
   createTime?: string;
 }
 
-/** 审批单分页；status 传 pending/approved/rejected，空为全部 */
-export function listApprovals(params: { status?: string; applicantId?: string; pageNo?: number; pageSize?: number }) {
+/**
+ * 审批单分页。
+ * - status 传 pending/returned/approved/rejected/canceled，空为全部
+ * - applicantId 过滤我发起的
+ * - approverId 过滤我参与审批的（后端按 step 表 approver_id 匹配，历史行按姓名兜底）
+ */
+export function listApprovals(params: {
+  status?: string;
+  applicantId?: string;
+  approverId?: string;
+  pageNo?: number;
+  pageSize?: number;
+}) {
   return http.get<any, { result: PageResult<Approval> }>('/team/approval/list', { params });
 }
 
@@ -83,12 +101,36 @@ export function listApprovalTodos(params: { pageNo?: number; pageSize?: number }
   return http.get<any, { result: PageResult<Approval> }>('/team/approval/todo', { params });
 }
 
-// ponytail: 试点级审批链硬编码（贺致远 → 黄茜茜，与后端守卫的姓名比对口径一致）。
-// 表单模板体系按 D-20261117-68 延后，模板重启后此链改由模板下发。
+// 试点级审批链：**仅作 fallback**。后端 v2 按 category 查启用模板优先；
+// 模板缺失时回退到本链，保证试点期零配置也能提交。模板配好后前端无需改动即自动切换。
+// 姓名与后端守卫的姓名比对口径一致（历史行 approver_id 为空时按姓名兜底）。
 export const PILOT_APPROVAL_STEPS = [
   { approverName: '贺致远', approverRole: '部门主管' },
   { approverName: '黄茜茜', approverRole: '副总经理' },
 ] as const;
+
+/**
+ * 提交申请。
+ * 后端 v2 优先按 category 查启用模板生成审批链；模板缺失时回退到 body.steps。
+ * 保留 PILOT_APPROVAL_STEPS 作为 fallback，避免试点期模板未配置时报错。
+ */
+/** 字段契约元素（与后端 field_schema 元素结构一致） */
+export interface ApprovalFieldDef {
+  key: string;
+  label: string;
+  type: 'text' | 'textarea' | 'number' | 'date' | 'select' | 'multiselect';
+  required?: boolean;
+  options?: string[];
+  min?: number;
+  max?: number;
+}
+
+/** 按类别取启用模板的字段契约；无模板/无 schema 返回空数组 */
+export function fetchApprovalFieldSchema(category: string) {
+  return http.get<any, { result: { fieldSchema?: string } | null }>('/team/approval/template/schema', {
+    params: { category },
+  });
+}
 
 export function submitApproval(body: {
   category: string;
@@ -96,6 +138,7 @@ export function submitApproval(body: {
   reason?: string;
   startDate?: string;
   endDate?: string;
+  formData?: string;
 }) {
   return http.post('/team/approval/submit', {
     approval: body,
@@ -109,7 +152,8 @@ export interface ApprovalStep {
   stepNo: number;
   approverName: string;
   approverRole?: string;
-  action: 'wait' | 'approved' | 'rejected';
+  approverId?: string;
+  action: 'wait' | 'approved' | 'rejected' | 'returned';
   comment?: string;
   actedAt?: string;
 }
@@ -124,6 +168,22 @@ export function approveApproval(id: string) {
 export function rejectApproval(id: string, comment?: string) {
   const qs = comment ? `?id=${id}&comment=${encodeURIComponent(comment)}` : `?id=${id}`;
   return http.post(`/team/approval/reject${qs}`);
+}
+
+/** 审批人退回至申请人（状态转 returned，可 resubmit） */
+export function returnApproval(id: string, comment?: string) {
+  const qs = comment ? `?id=${id}&comment=${encodeURIComponent(comment)}` : `?id=${id}`;
+  return http.post(`/team/approval/return${qs}`);
+}
+
+/** 申请人撤回（仅 pending 且所有步骤均未操作，终态 canceled） */
+export function cancelApproval(id: string) {
+  return http.post(`/team/approval/cancel?id=${id}`);
+}
+
+/** 申请人重提（仅 returned，按模板重建审批链，状态回 pending） */
+export function resubmitApproval(id: string, steps?: { approverName: string; approverRole?: string }[]) {
+  return http.post('/team/approval/resubmit', { id, steps });
 }
 
 /** 任务删除（服务端逻辑删 deleted=1，需 team:task:delete 权限且限归属人/管理员） */

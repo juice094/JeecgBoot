@@ -1,12 +1,16 @@
-// 邮件体系 API 契约骨架 —— /team/mail/**（原型线，后端 jeecg-module-mail 未立项）
-// 依据：projects/agent-collab-pilot/docs/OA 邮件体系接口文档.md v1.1.0（MAIL-API-001）
-// 状态：契约占位。后端未实现，真实调用必然失败；WorkEmail.vue 默认走 mock，不计入联调基准。
-// 归属：额外工作线（原型与骨架），非 docs/23 主合同施工项。
+// 邮件体系 API —— /team/mail/**（后端 jeecg-module-mail）
+// 依据：后端 5 个 Controller 实际注解与 DTO 字段（2026-11-18 逐一核对）
+// 状态：契约已与后端对齐；B-3/B-5/B-6 未实现的端点已显式标注。
+// 注意：jeecg 实体主键为 String；jeecg IPage 返回 records/total/current/pages/size。
 import http from '@/utils/http';
 
+/** jeecg IPage */
 export interface PageResult<T> {
   records: T[];
   total: number;
+  size: number;
+  current: number;
+  pages: number;
 }
 
 const BASE = '/team/mail';
@@ -30,6 +34,7 @@ export interface MailServerConfig {
   password: string;
 }
 
+/** 后端 ConnectionTestResult：IMAP 侧失败时 errorCode 前缀 imap_，SMTP 侧 smtp_ */
 export interface ConnectionTestResult {
   imapOk?: boolean;
   smtpOk: boolean;
@@ -39,8 +44,9 @@ export interface ConnectionTestResult {
 
 /* ==================== A 系统发信 ==================== */
 
+/** 后端 SystemMailAccountRespDTO（不含 password） */
 export interface SystemMailAccount {
-  id: number;
+  id: string;
   host: string;
   port: number;
   username: string;
@@ -49,13 +55,25 @@ export interface SystemMailAccount {
   fromAddress: string;
   fromName: string;
   status: number;
+  createTime?: string;
+}
+
+export interface SystemMailAccountCreateReq {
+  host: string;
+  port: number;
+  username: string;
+  password: string;
+  sslEnable?: boolean;
+  starttlsEnable?: boolean;
+  fromAddress: string;
+  fromName?: string;
 }
 
 export interface SystemMailTemplate {
-  id: number;
+  id: string;
   code: string;
   name: string;
-  accountId: number;
+  accountId: string;
   title: string;
   content: string;
   /** 保存时扫描 {key} 自动生成 */
@@ -64,12 +82,16 @@ export interface SystemMailTemplate {
 }
 
 export interface SystemMailLog {
-  id: number;
+  id: string;
+  accountId?: string;
   templateCode: string;
+  toMails?: string;
   toHash: string;
   sendStatus: MailSendStatus;
   retryCount: number;
-  traceId: string;
+  traceId?: string;
+  templateTitle?: string;
+  templateContent?: string;
   createTime: string;
   errorCode?: string;
   errorMsg?: string;
@@ -84,25 +106,34 @@ export interface SendMailReq {
   idempotencyKey?: string;
 }
 
+/** 批量单条结果（后端 MailBatchSendItemResult） */
+export interface MailBatchSendItemResult {
+  index: number;
+  templateCode: string;
+  success: boolean;
+  logId: string | null;
+  errorMessage: string | null;
+}
+
 /** 3.1 账号管理 */
-export function listSystemMailAccounts() {
-  return http.get<any, { result: SystemMailAccount[] }>(`${BASE}/system/accounts`);
+export function listSystemMailAccounts(params: { pageNo?: number; pageSize?: number; keyword?: string } = {}) {
+  return http.get<any, { result: PageResult<SystemMailAccount> }>(`${BASE}/system/accounts`, { params });
 }
 
-export function createSystemMailAccount(body: Partial<SystemMailAccount> & { password: string }) {
-  return http.post(`${BASE}/system/accounts`, body);
+export function createSystemMailAccount(body: SystemMailAccountCreateReq) {
+  return http.post<any, { result: string }>(`${BASE}/system/accounts`, body);
 }
 
-export function updateSystemMailAccount(id: number, body: Partial<SystemMailAccount> & { password?: string }) {
-  return http.put(`${BASE}/system/accounts/${id}`, body);
+export function updateSystemMailAccount(id: string, body: Partial<SystemMailAccountCreateReq>) {
+  return http.put<any, { result: string }>(`${BASE}/system/accounts/${id}`, body);
 }
 
-export function testSystemMailAccount(id: number) {
+export function testSystemMailAccount(id: string) {
   return http.post<any, { result: ConnectionTestResult }>(`${BASE}/system/accounts/${id}/test`);
 }
 
-export function deleteSystemMailAccount(id: number) {
-  return http.delete(`${BASE}/system/accounts/${id}`);
+export function deleteSystemMailAccount(id: string) {
+  return http.delete<any, { result: string }>(`${BASE}/system/accounts/${id}`);
 }
 
 /** 3.2 模板管理 */
@@ -111,28 +142,36 @@ export function listSystemMailTemplates(params: { code?: string; name?: string; 
 }
 
 export function createSystemMailTemplate(body: Partial<SystemMailTemplate>) {
-  return http.post(`${BASE}/system/templates`, body);
+  return http.post<any, { result: string }>(`${BASE}/system/templates`, body);
 }
 
-export function updateSystemMailTemplate(id: number, body: Partial<SystemMailTemplate>) {
-  return http.put(`${BASE}/system/templates/${id}`, body);
+export function updateSystemMailTemplate(id: string, body: Partial<SystemMailTemplate>) {
+  return http.put<any, { result: string }>(`${BASE}/system/templates/${id}`, body);
 }
 
+export function getSystemMailTemplateByCode(code: string) {
+  return http.get<any, { result: SystemMailTemplate }>(`${BASE}/system/templates/${code}`);
+}
+
+/** 预览返回 MailTemplatePreviewDTO：{ title, content, params } */
 export function previewSystemMailTemplate(code: string, params: Record<string, unknown>) {
-  return http.post(`${BASE}/system/templates/${code}/preview`, { params });
+  return http.post<any, { result: { title: string; content: string; params: string[] } }>(
+    `${BASE}/system/templates/${code}/preview`,
+    { params },
+  );
 }
 
-export function deleteSystemMailTemplate(id: number) {
-  return http.delete(`${BASE}/system/templates/${id}`);
+export function deleteSystemMailTemplate(id: string) {
+  return http.delete<any, { result: string }>(`${BASE}/system/templates/${id}`);
 }
 
-/** 3.3 发送 */
+/** 3.3 发送（后端返回 Map<String,String> → { logId }） */
 export function sendSystemMail(body: SendMailReq) {
-  return http.post<any, { result: { logId: number } }>(`${BASE}/system/send`, body);
+  return http.post<any, { result: { logId: string } }>(`${BASE}/system/send`, body);
 }
 
 export function sendSystemMailBatch(list: SendMailReq[]) {
-  return http.post(`${BASE}/system/send/batch`, list);
+  return http.post<any, { result: MailBatchSendItemResult[] }>(`${BASE}/system/send/batch`, list);
 }
 
 /** 3.4 日志查询与重试 */
@@ -149,26 +188,37 @@ export function listSystemMailLogs(params: {
   return http.get<any, { result: PageResult<SystemMailLog> }>(`${BASE}/system/logs`, { params });
 }
 
-export function getSystemMailLog(id: number) {
+export function getSystemMailLog(id: string) {
   return http.get<any, { result: SystemMailLog }>(`${BASE}/system/logs/${id}`);
 }
 
-export function retrySystemMailLog(id: number) {
-  return http.post(`${BASE}/system/logs/${id}/retry`);
+export function retrySystemMailLog(id: string) {
+  return http.post<any, { result: string }>(`${BASE}/system/logs/${id}/retry`);
 }
 
+/** 注意：后端为 POST /stat（非 GET），返回 MailLogStatDTO */
 export function getSystemMailLogStat() {
-  return http.get(`${BASE}/system/logs/stat`);
+  return http.post<any, { result: { statusCounts: Record<string, number>; templateCounts: Record<string, number> } }>(
+    `${BASE}/system/logs/stat`,
+  );
 }
 
 /* ==================== B 员工邮箱 ==================== */
 
+/** 后端 OaMailAccountRespDTO（不含密码） */
 export interface MyMailAccount {
-  id: number;
+  id: string;
   email: string;
+  imapHost?: string;
+  imapPort?: number;
+  imapSsl?: boolean;
+  imapUsername?: string;
+  smtpHost?: string;
+  smtpPort?: number;
+  smtpSsl?: boolean;
+  smtpUsername?: string;
   testStatus: number;
   lastSyncTime?: string;
-  syncRunning?: boolean;
 }
 
 export interface BindMailAccountReq {
@@ -177,33 +227,43 @@ export interface BindMailAccountReq {
   smtp: MailServerConfig;
 }
 
+/** 后端 OaMailFolderState */
 export interface MailFolder {
+  id: string;
+  accountId: string;
   remoteName: string;
   /** null 表示未识别，需通过映射接口维护 */
   canonical: MailCanonicalFolder | null;
   lastUid?: number;
 }
 
+/** 后端 MailSyncStatusDTO：无聚合 lastUid，各文件夹游标在 folders[] 中 */
 export interface MailSyncStatus {
-  lastUid: number;
-  lastSyncTime?: string;
+  accountId: string;
   running: boolean;
+  lastSyncTime?: string;
+  folders: MailFolder[];
 }
 
+/** 后端 OaMailMessageIndex：注意字段为 readFlag（非 read） */
 export interface MailMessageIndex {
-  id: number;
-  accountId: number;
+  id: string;
+  accountId: string;
   canonicalFolder: MailCanonicalFolder;
+  imapUid?: number;
+  messageId?: string;
   subject: string;
   fromName: string;
   /** 脱敏 hash，非明文地址 */
   fromAddressHash: string;
+  toSummary?: string;
   receivedTime: string;
-  read: boolean;
+  readFlag: boolean;
   hasAttachment: boolean;
   snippet: string;
 }
 
+/** B-3 未实现：详情结构按接口文档预留，后端端点尚未提供 */
 export interface MailAttachmentMeta {
   name: string;
   size: number;
@@ -219,9 +279,9 @@ export interface MailMessageDetail extends MailMessageIndex {
 }
 
 export interface SendMailMessageReq {
-  accountId: number;
+  accountId: string;
   mode: MailSendMode;
-  replyToMessageId?: number;
+  replyToMessageId?: string;
   to: string;
   cc?: string[];
   bcc?: string[];
@@ -237,41 +297,44 @@ export function listMyMailAccounts() {
 }
 
 export function bindMyMailAccount(body: BindMailAccountReq) {
-  return http.post(`${BASE}/accounts`, body);
+  return http.post<any, { result: string }>(`${BASE}/accounts`, body);
 }
 
-export function updateMyMailAccount(id: number, body: Partial<BindMailAccountReq>) {
-  return http.put(`${BASE}/accounts/${id}`, body);
+export function updateMyMailAccount(id: string, body: Partial<BindMailAccountReq>) {
+  return http.put<any, { result: string }>(`${BASE}/accounts/${id}`, body);
 }
 
-export function testMyMailAccount(id: number) {
+export function testMyMailAccount(id: string) {
   return http.post<any, { result: ConnectionTestResult }>(`${BASE}/accounts/${id}/test`);
 }
 
-export function unbindMyMailAccount(id: number) {
-  return http.delete(`${BASE}/accounts/${id}`);
+export function unbindMyMailAccount(id: string) {
+  return http.delete<any, { result: string }>(`${BASE}/accounts/${id}`);
 }
 
 /** 4.2 文件夹与同步 */
-export function listMailFolders(accountId: number) {
-  return http.get<any, { result: { folders: MailFolder[] } }>(`${BASE}/accounts/${accountId}/folders`);
+
+/** 后端直接返回 List<OaMailFolderState>，无 { folders } 包装 */
+export function listMailFolders(accountId: string) {
+  return http.get<any, { result: MailFolder[] }>(`${BASE}/accounts/${accountId}/folders`);
 }
 
-export function updateMailFolderMapping(accountId: number, mapping: Array<{ remoteName: string; canonical: MailCanonicalFolder }>) {
-  return http.put(`${BASE}/accounts/${accountId}/folders/mapping`, { mapping });
+/** 后端 MailFolderMappingReqDTO 为单条 { remoteName, canonical }，非数组 */
+export function updateMailFolderMapping(accountId: string, mapping: { remoteName: string; canonical: MailCanonicalFolder }) {
+  return http.put<any, { result: string }>(`${BASE}/accounts/${accountId}/folders/mapping`, mapping);
 }
 
-export function triggerMailSync(accountId: number) {
+export function triggerMailSync(accountId: string) {
   return http.post<any, { result: { taskId: string } }>(`${BASE}/accounts/${accountId}/sync`);
 }
 
-export function getMailSyncStatus(accountId: number) {
+export function getMailSyncStatus(accountId: string) {
   return http.get<any, { result: MailSyncStatus }>(`${BASE}/accounts/${accountId}/sync/status`);
 }
 
 /** 4.3 列表与详情（列表只查索引表） */
 export function listMailMessages(params: {
-  accountId: number;
+  accountId: string;
   canonicalFolder?: MailCanonicalFolder;
   keyword?: string;
   unreadOnly?: boolean;
@@ -281,29 +344,32 @@ export function listMailMessages(params: {
   return http.get<any, { result: PageResult<MailMessageIndex> }>(`${BASE}/messages`, { params });
 }
 
-export function getMailMessage(id: number) {
+/** B-3 未实现：后端暂无 GET /messages/{id} */
+export function getMailMessage(id: string) {
   return http.get<any, { result: MailMessageDetail }>(`${BASE}/messages/${id}`);
 }
 
-export function markMailRead(id: number, read: boolean) {
-  return http.patch(`${BASE}/messages/${id}/read`, { read });
+/** B-3 未实现：后端暂无 PATCH /messages/{id}/read */
+export function markMailRead(id: string, read: boolean) {
+  return http.patch<any, { result: string }>(`${BASE}/messages/${id}/read`, { read });
 }
 
-export function deleteMailMessage(id: number) {
-  return http.delete(`${BASE}/messages/${id}`);
+/** B-3 未实现：后端暂无 DELETE /messages/{id} */
+export function deleteMailMessage(id: string) {
+  return http.delete<any, { result: string }>(`${BASE}/messages/${id}`);
 }
 
-/** 4.4 发送与业务关联 */
+/** 4.4 发送与业务关联（B-5/B-6 未实现） */
 export function sendMailMessage(body: SendMailMessageReq) {
-  return http.post(`${BASE}/messages/send`, body);
+  return http.post<any, { result: { logId: string } }>(`${BASE}/messages/send`, body);
 }
 
-export function mailMessageToTodo(id: number, body: { bizType: string; bizId: string }) {
-  return http.post(`${BASE}/messages/${id}/to-todo`, body);
+export function mailMessageToTodo(id: string, body: { bizType: string; bizId: string }) {
+  return http.post<any, { result: string }>(`${BASE}/messages/${id}/to-todo`, body);
 }
 
-export function listMailBizLinks(id: number) {
-  return http.get(`${BASE}/messages/${id}/biz-links`);
+export function listMailBizLinks(id: string) {
+  return http.get<any, { result: unknown[] }>(`${BASE}/messages/${id}/biz-links`);
 }
 
 /* ==================== C Agent 受控接口（封存线，本期不实施） ==================== */
@@ -321,6 +387,6 @@ export function searchAgentMessages(params: { keyword: string; pageNo?: number; 
   return http.get(`${BASE}/agent/messages/search`, { params });
 }
 
-export function triageMail(body: { messageId: number }) {
+export function triageMail(body: { messageId: string }) {
   return http.post(`${BASE}/agent/triage`, body);
 }

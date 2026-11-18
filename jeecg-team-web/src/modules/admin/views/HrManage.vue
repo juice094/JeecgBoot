@@ -11,7 +11,10 @@ import DeptNode from '../components/DeptNode.vue';
 const tree = ref<DepartNode[]>([]);
 const users = ref<SysUser[]>([]);
 const totalUsers = ref(0);
-const activeDept = ref('');
+// 选中态按 id 匹配（showcase-dev 2026-11-17 修复）：不同层级的同名部门只高亮当前行；
+// activeDeptName 仅用于成员面板标题展示。
+const activeDeptId = ref('');
+const activeDeptName = ref('');
 const loading = ref(false);
 const errorMsg = ref('');
 
@@ -22,7 +25,8 @@ function flatten(nodes: DepartNode[]): DepartNode[] {
 const flat = computed(() => flatten(tree.value));
 // SysDepartTreeModel 无负责人字段，统计不到时显示 '-'，不自造假数
 const noLeader = computed(() => {
-  const withField = flat.value.filter((n) => 'leaderName' in (n as Record<string, unknown>));
+  type DepartWithLeader = DepartNode & { leaderName?: string };
+  const withField = flat.value.filter((n): n is DepartWithLeader => 'leaderName' in n);
   if (!withField.length) return null;
   return withField.filter((n) => !n.leaderName).length;
 });
@@ -40,7 +44,8 @@ onMounted(async () => {
     tree.value = t;
     users.value = u.result.records;
     totalUsers.value = u.result.total;
-    activeDept.value = t[0]?.departName ?? '';
+    activeDeptId.value = t[0]?.id ?? '';
+    activeDeptName.value = t[0]?.departName ?? '';
   } catch (e: any) {
     errorMsg.value = e.message || '加载失败';
   } finally {
@@ -49,7 +54,8 @@ onMounted(async () => {
 });
 
 function selectDept(node: DepartNode) {
-  activeDept.value = node.departName ?? '';
+  activeDeptId.value = node.id;
+  activeDeptName.value = node.departName ?? node.id;
   // ponytail: 选中部门按 orgCode 精确过滤待 Ym3699 接；当前展示全量成员
 }
 
@@ -80,13 +86,21 @@ const statusCls = (s?: number) => (s === 1 ? 'tag-success' : 'tag-danger');
       <div class="dept-pane">
         <div class="dept-head"><span>部门名称</span></div>
         <div v-if="loading" style="color: var(--text-muted); font-size: 13px; padding: 12px 0">加载中…</div>
-        <DeptNode v-for="node in tree" :key="node.id" :node="node" :depth="0" :active-name="activeDept" @select="selectDept" />
+        <DeptNode
+          v-for="node in tree"
+          :key="node.id"
+          :node="node"
+          :depth="0"
+          :active-id="activeDeptId"
+          :path-text="node.departName ?? node.id"
+          @select="selectDept"
+        />
       </div>
       <div class="member-pane">
         <div class="member-pane__head">
           <div class="dept-badge"><PhBuildings :size="20" /></div>
           <div>
-            <div style="font-size: 16px; font-weight: 600">{{ activeDept || '全部成员' }}</div>
+            <div style="font-size: 16px; font-weight: 600">{{ activeDeptName || '全部成员' }}</div>
             <div style="font-size: 12px; color: var(--text-muted)">共 {{ users.length }} 人（本页）</div>
           </div>
         </div>

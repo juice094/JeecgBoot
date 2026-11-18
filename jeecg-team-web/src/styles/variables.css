@@ -184,7 +184,8 @@
   --text-placeholder: var(--gray-400);
   --border-color: #c6cdd6;
   --border-color-light: #d9dee5;
-  --border-strong: #99a1ac;
+  /* 控件边框（按钮/输入框/下拉）：浅色调浅一档，避免 #99a1ac 过重（走查实测） */
+  --border-strong: #a8b0bb;
   --overlay-backdrop: rgba(31, 35, 40, 0.45);
 
   /* ---------- 阴影阶梯（浅色回原值系） ---------- */

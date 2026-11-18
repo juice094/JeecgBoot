@@ -1,12 +1,16 @@
 <script setup lang="ts">
 // 部门树节点（递归）—— owner: Ym3699
+// 2026-11-17 showcase-dev 修复：选中态按 node.id 匹配（原按 departName 匹配，
+// 不同层级的同名组织会同时高亮）；pathText 提供完整路径悬浮提示，用于区分同名部门。
 import type { DepartNode } from '@/api/sys';
 import { PhBuildings } from '@phosphor-icons/vue';
 
 defineProps<{
   node: DepartNode;
   depth: number;
-  activeName: string;
+  activeId: string;
+  /** 完整组织路径（如「校本部 / 财务部」），用于同名部门的悬浮区分；可空 */
+  pathText?: string;
 }>();
 
 const emit = defineEmits<{ (e: 'select', node: DepartNode): void }>();
@@ -16,8 +20,9 @@ const emit = defineEmits<{ (e: 'select', node: DepartNode): void }>();
   <div>
     <div
       class="dept-row"
-      :class="{ 'dept-row--active': node.departName === activeName }"
+      :class="{ 'dept-row--active': node.id === activeId }"
       :style="{ paddingLeft: `${depth * 16}px` }"
+      :title="pathText || node.departName || node.id"
       @click="emit('select', node)"
     >
       <PhBuildings :size="14" />
@@ -28,7 +33,8 @@ const emit = defineEmits<{ (e: 'select', node: DepartNode): void }>();
       :key="child.id"
       :node="child"
       :depth="depth + 1"
-      :active-name="activeName"
+      :active-id="activeId"
+      :path-text="pathText && child.departName ? `${pathText} / ${child.departName}` : (child.departName ?? '')"
       @select="emit('select', $event)"
     />
   </div>
