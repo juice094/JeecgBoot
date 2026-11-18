@@ -344,22 +344,22 @@ export function listMailMessages(params: {
   return http.get<any, { result: PageResult<MailMessageIndex> }>(`${BASE}/messages`, { params });
 }
 
-/** B-3 未实现：后端暂无 GET /messages/{id} */
+/** 4.3 列表与详情（列表查索引表；详情实时 FETCH 正文，B-3） */
 export function getMailMessage(id: string) {
   return http.get<any, { result: MailMessageDetail }>(`${BASE}/messages/${id}`);
 }
 
-/** B-3 未实现：后端暂无 PATCH /messages/{id}/read */
+/** B-3 已读回写：IMAP \Seen + 索引 read_flag */
 export function markMailRead(id: string, read: boolean) {
   return http.patch<any, { result: string }>(`${BASE}/messages/${id}/read`, { read });
 }
 
-/** B-3 未实现：后端暂无 DELETE /messages/{id} */
+/** B-5 删除：Trash 映射优先移入，否则永久删除 */
 export function deleteMailMessage(id: string) {
   return http.delete<any, { result: string }>(`${BASE}/messages/${id}`);
 }
 
-/** 4.4 发送与业务关联（B-5/B-6 未实现） */
+/** 4.4 发送（B-6）：经绑定账号 SMTP 直发 */
 export function sendMailMessage(body: SendMailMessageReq) {
   return http.post<any, { result: { logId: string } }>(`${BASE}/messages/send`, body);
 }

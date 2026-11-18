@@ -4,6 +4,10 @@ import java.util.Date;
 import java.util.List;
 import java.util.stream.Collectors;
 
+import jakarta.mail.Store;
+import jakarta.mail.internet.InternetAddress;
+import jakarta.mail.internet.MimeMessage;
+
 import org.apache.commons.lang3.StringUtils;
 import org.jeecg.common.exception.JeecgBootException;
 import org.jeecg.modules.mail.delivery.ImapSmtpConnector;
@@ -14,6 +18,8 @@ import org.jeecg.modules.mail.dto.MailFolderMappingReqDTO;
 import org.jeecg.modules.mail.dto.MailServerConfig;
 import org.jeecg.modules.mail.dto.MailSyncStatusDTO;
 import org.jeecg.modules.mail.dto.OaMailAccountRespDTO;
+import org.jeecg.modules.mail.dto.OaMailMessageDetailDTO;
+import org.jeecg.modules.mail.dto.SendMailMessageReqDTO;
 import org.jeecg.modules.mail.entity.OaMailAccount;
 import org.jeecg.modules.mail.entity.OaMailFolderState;
 import org.jeecg.modules.mail.entity.OaMailMessageIndex;
@@ -22,8 +28,12 @@ import org.jeecg.modules.mail.mapper.OaMailAccountMapper;
 import org.jeecg.modules.mail.mapper.OaMailFolderStateMapper;
 import org.jeecg.modules.mail.mapper.OaMailMessageIndexMapper;
 import org.jeecg.modules.mail.service.IOaMailService;
+import org.jeecg.modules.mail.support.MailBodyExtractor;
 import org.jeecg.modules.mail.support.MailPasswordCodec;
+import org.jeecg.modules.mail.sync.MailMessageOperator;
 import org.jeecg.modules.mail.sync.MailSyncTracker;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -49,6 +59,8 @@ public class OaMailServiceImpl extends ServiceImpl<OaMailAccountMapper, OaMailAc
     /** 测连状态：通过 */
     private static final int TEST_STATUS_OK = 1;
 
+    private static final Logger log = LoggerFactory.getLogger(OaMailServiceImpl.class);
+
     @Autowired
     private OaMailMessageIndexMapper indexMapper;
 
@@ -66,6 +78,9 @@ public class OaMailServiceImpl extends ServiceImpl<OaMailAccountMapper, OaMailAc
 
     @Autowired
     private OaMailOwnershipGuard ownershipGuard;
+
+    @Autowired
+    private MailMessageOperator operator;
 
     @Override
     @Transactional(rollbackFor = Exception.class)
@@ -245,7 +260,195 @@ public class OaMailServiceImpl extends ServiceImpl<OaMailAccountMapper, OaMailAc
                 wrapper);
     }
 
+    @Override
+    public OaMailMessageDetailDTO getMessageDetail(String id) {
+        OaMailMessageIndex row = requireIndexRow(id);
+        OaMailAccount account = getAndCheckOwnership(row.getAccountId());
+        Store store = null;
+        long start = System.currentTimeMillis();
+        try {
+            store = connector.openImapStore(toImapConfig(account));
+            String remote = operator.resolveRemoteFolder(folderStateMapper, account.getId(),
+                    MailCanonicalFolder.fromCode(row.getCanonicalFolder()));
+            requireMappedFolder(remote, row.getCanonicalFolder());
+            jakarta.mail.Message message = operator.fetchByUid(store, remote, row.getImapUid());
+            if (message == null) {
+                throw new JeecgBootException("远端邮件不存在（可能已删除或 UID 失效），请同步后重试");
+            }
+            MailBodyExtractor.ExtractedBody body = MailBodyExtractor.extract(message);
+            // 打开详情即已读（Outlook 口径）：\Seen 回写 + 索引列同步
+            if (!Boolean.TRUE.equals(row.getReadFlag())) {
+                message.setFlag(jakarta.mail.Flags.Flag.SEEN, true);
+                row.setReadFlag(true);
+                indexMapper.updateById(row);
+            }
+            return buildDetailDTO(row, body, System.currentTimeMillis() - start);
+        } catch (MailConnectFailedException e) {
+            throw e;
+        } catch (jakarta.mail.MessagingException | java.io.IOException e) {
+            throw new JeecgBootException("读取邮件正文失败: " + e.getMessage(), e);
+        } finally {
+            closeStoreQuietly(store, account.getId());
+        }
+    }
+
+    @Override
+    public void markMessageRead(String id, boolean read) {
+        OaMailMessageIndex row = requireIndexRow(id);
+        OaMailAccount account = getAndCheckOwnership(row.getAccountId());
+        if (Boolean.valueOf(read).equals(row.getReadFlag())) {
+            return;
+        }
+        Store store = null;
+        try {
+            store = connector.openImapStore(toImapConfig(account));
+            String remote = operator.resolveRemoteFolder(folderStateMapper, account.getId(),
+                    MailCanonicalFolder.fromCode(row.getCanonicalFolder()));
+            requireMappedFolder(remote, row.getCanonicalFolder());
+            operator.setSeen(store, remote, row.getImapUid(), read);
+            row.setReadFlag(read);
+            indexMapper.updateById(row);
+        } catch (jakarta.mail.MessagingException e) {
+            throw new JeecgBootException("已读状态回写失败: " + e.getMessage(), e);
+        } finally {
+            closeStoreQuietly(store, account.getId());
+        }
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void deleteMessage(String id) {
+        OaMailMessageIndex row = requireIndexRow(id);
+        OaMailAccount account = getAndCheckOwnership(row.getAccountId());
+        Store store = null;
+        try {
+            store = connector.openImapStore(toImapConfig(account));
+            String remote = operator.resolveRemoteFolder(folderStateMapper, account.getId(),
+                    MailCanonicalFolder.fromCode(row.getCanonicalFolder()));
+            requireMappedFolder(remote, row.getCanonicalFolder());
+            operator.delete(store, account.getId(), folderStateMapper, remote, row.getImapUid());
+        } catch (jakarta.mail.MessagingException e) {
+            throw new JeecgBootException("删除邮件失败: " + e.getMessage(), e);
+        } finally {
+            closeStoreQuietly(store, account.getId());
+        }
+        indexMapper.deleteById(row.getId());
+    }
+
+    @Override
+    public String sendMessage(SendMailMessageReqDTO req) {
+        if (req == null || StringUtils.isBlank(req.getAccountId())) {
+            throw new JeecgBootException("accountId 不能为空");
+        }
+        if (StringUtils.isBlank(req.getTo())) {
+            throw new JeecgBootException("收件人不能为空");
+        }
+        if (StringUtils.isBlank(req.getHtml())) {
+            throw new JeecgBootException("正文不能为空");
+        }
+        OaMailAccount account = getAndCheckOwnership(req.getAccountId());
+
+        jakarta.mail.Session session = connector.buildSmtpSession(toSmtpConfig(account));
+        MimeMessage message;
+        try {
+            message = new MimeMessage(session);
+            message.setFrom(new InternetAddress(account.getEmail()));
+            message.setRecipients(jakarta.mail.Message.RecipientType.TO, parseAddresses(req.getTo()));
+            if (req.getCc() != null && !req.getCc().isEmpty()) {
+                message.setRecipients(jakarta.mail.Message.RecipientType.CC,
+                        parseAddresses(String.join(",", req.getCc())));
+            }
+            if (req.getBcc() != null && !req.getBcc().isEmpty()) {
+                message.setRecipients(jakarta.mail.Message.RecipientType.BCC,
+                        parseAddresses(String.join(",", req.getBcc())));
+            }
+            message.setSubject(StringUtils.defaultIfBlank(req.getSubject(), "(无主题)"), "UTF-8");
+            message.setContent(req.getHtml(), "text/html; charset=UTF-8");
+            message.saveChanges();
+            connector.send(toSmtpConfig(account), message);
+        } catch (jakarta.mail.MessagingException e) {
+            throw new JeecgBootException("发送失败: " + e.getMessage(), e);
+        }
+
+        // 发后归档已发送（best-effort，失败仅告警不阻断发送结果）
+        archiveToSentQuietly(account, message);
+        return "发送成功";
+    }
+
     // ---------- 内部 ----------
+
+    private OaMailMessageIndex requireIndexRow(String id) {
+        if (StringUtils.isBlank(id)) {
+            throw new JeecgBootException("邮件 id 不能为空");
+        }
+        OaMailMessageIndex row = indexMapper.selectById(id);
+        if (row == null) {
+            throw new JeecgBootException("邮件不存在: " + id);
+        }
+        return row;
+    }
+
+    private void requireMappedFolder(String remote, String canonicalFolder) {
+        if (remote == null) {
+            throw new JeecgBootException("文件夹「" + canonicalFolder + "」未映射到远端，请在同步状态里维护映射后再试");
+        }
+    }
+
+    private OaMailMessageDetailDTO buildDetailDTO(OaMailMessageIndex row, MailBodyExtractor.ExtractedBody body,
+            long latencyMs) {
+        OaMailMessageDetailDTO dto = new OaMailMessageDetailDTO();
+        dto.setId(row.getId());
+        dto.setAccountId(row.getAccountId());
+        dto.setCanonicalFolder(row.getCanonicalFolder());
+        dto.setImapUid(row.getImapUid());
+        dto.setSubject(row.getSubject());
+        dto.setFromName(row.getFromName());
+        dto.setFromAddressHash(row.getFromAddressHash());
+        dto.setToSummary(row.getToSummary());
+        dto.setReceivedTime(row.getReceivedTime());
+        dto.setReadFlag(row.getReadFlag());
+        dto.setHasAttachment(row.getHasAttachment());
+        dto.setText(body.getText());
+        dto.setHtml(body.getHtml());
+        dto.setTruncated(body.isTruncated());
+        dto.setAttachments(body.getAttachments());
+        dto.setFetchedFromImap(true);
+        dto.setFetchLatencyMs(latencyMs);
+        return dto;
+    }
+
+    private void archiveToSentQuietly(OaMailAccount account, MimeMessage message) {
+        Store store = null;
+        try {
+            store = connector.openImapStore(toImapConfig(account));
+            String sentRemote = operator.resolveRemoteFolder(folderStateMapper, account.getId(),
+                    MailCanonicalFolder.SENT);
+            if (sentRemote == null) {
+                log.warn("[mail] 账号 {} 未映射「已发送」文件夹，发信不入归档（下次同步不影响）", account.getId());
+                return;
+            }
+            operator.appendToFolder(store, sentRemote, message, true);
+        } catch (Exception e) {
+            log.warn("[mail] 发信归档已发送失败 accountId={}: {}", account.getId(), e.getMessage());
+        } finally {
+            closeStoreQuietly(store, account.getId());
+        }
+    }
+
+    private void closeStoreQuietly(Store store, String accountId) {
+        if (store != null) {
+            try {
+                store.close();
+            } catch (jakarta.mail.MessagingException e) {
+                log.warn("[mail] 关闭 IMAP 连接失败 accountId={}", accountId);
+            }
+        }
+    }
+
+    private InternetAddress[] parseAddresses(String raw) throws jakarta.mail.internet.AddressException {
+        return InternetAddress.parse(raw.replace('；', ';'));
+    }
+
 
     private void validateBindRequest(MailAccountBindReqDTO req, boolean passwordRequired) {
         if (req == null || StringUtils.isBlank(req.getEmail())) {

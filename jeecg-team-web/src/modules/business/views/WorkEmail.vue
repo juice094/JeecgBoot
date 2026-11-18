@@ -1,7 +1,7 @@
 <script setup lang="ts">
 // 工作邮箱（工具组）—— owner: juice094
 // 合同依据：projects/agent-collab-pilot/docs/OA 邮件体系接口文档.md v1.1.0
-// 现状：已接真实接口（列表/文件夹/同步/账号）；详情、已读、删除、写信对应后端 B-3/B-5/B-6 未实现，保持本地交互并显式提示。
+// 现状：全链路真实接口——列表（分页）/文件夹/同步/账号/详情正文（B-3）/已读回写/删除（B-5）/写信（B-6）。
 // UI 结构对齐 Outlook 网页版三栏（规格见 .refs/extracted/outlook-mail-spec.md）。
 import { computed, onMounted, ref } from 'vue';
 import { PhArrowsClockwise, PhEnvelopeSimple, PhWarningCircle } from '@phosphor-icons/vue';
@@ -10,24 +10,32 @@ import MailListToolbar from '@/components/MailListToolbar.vue';
 import MailListRow from '@/components/MailListRow.vue';
 import MailReadingPane from '@/components/MailReadingPane.vue';
 import MailComposeDialog from '@/components/MailComposeDialog.vue';
-import type { MailCanonicalFolder, MailMessageIndex, MailSendMode, MailSyncStatus, MyMailAccount, MailFolder } from '@/api/mail';
+import type { MailCanonicalFolder, MailMessageDetail, MailMessageIndex, MailSendMode, MailSyncStatus, MyMailAccount, MailFolder } from '@/api/mail';
 import {
+  deleteMailMessage,
+  getMailMessage,
   getMailSyncStatus,
   listMailFolders,
   listMailMessages,
   listMyMailAccounts,
+  markMailRead,
+  sendMailMessage,
   triggerMailSync,
 } from '@/api/mail';
 import { MAIL_FOLDER_META, MAIL_SEND_MODES } from '@/constants/mail';
 
-/** 未实现能力提示（后端 B-3/B-5/B-6 范围） */
-const UNIMPLEMENTED_NOTICE = '详情正文、标记已读、删除、写信接口属后端 B-3/B-5/B-6，尚未实现；当前为本地占位。';
+/** 列表分页：后端 pageMessages 按 pageNo/pageSize 返回 records/total */
+const PAGE_SIZE = 20;
 
 const activeFolder = ref<MailCanonicalFolder>('Inbox');
 const mails = ref<MailMessageIndex[]>([]);
+const total = ref(0);
+const pageNo = ref(1);
 const myAccount = ref<MyMailAccount | null>(null);
 const folderStates = ref<MailFolder[]>([]);
 const syncStatus = ref<MailSyncStatus | null>(null);
+const detail = ref<MailMessageDetail | null>(null);
+const detailLoading = ref(false);
 
 const loading = ref(false);
 const bootstrapping = ref(true);
@@ -50,6 +58,8 @@ function onKeywordInput() {
   searchTimer = setTimeout(() => {
     selectedId.value = null;
     selectedIds.value = [];
+    detail.value = null;
+    pageNo.value = 1;
     void loadMessages();
   }, 300);
 }
@@ -58,11 +68,14 @@ function toggleUnreadOnly() {
   unreadOnly.value = !unreadOnly.value;
   selectedId.value = null;
   selectedIds.value = [];
+  detail.value = null;
+  pageNo.value = 1;
   void loadMessages();
 }
 
 function clearKeyword() {
   keyword.value = '';
+  pageNo.value = 1;
   void loadMessages();
 }
 
@@ -98,8 +111,18 @@ function switchFolder(key: string) {
   activeFolder.value = key as MailCanonicalFolder;
   selectedId.value = null;
   selectedIds.value = [];
+  detail.value = null;
+  pageNo.value = 1;
   void loadMessages();
 }
+
+/** 翻页（pageNo 越界由按钮 disabled 兜底） */
+function gotoPage(next: number) {
+  pageNo.value = next;
+  selectedIds.value = [];
+  void loadMessages();
+}
+const totalPages = computed(() => Math.max(1, Math.ceil(total.value / PAGE_SIZE)));
 
 // ---- 数据加载 ----
 
@@ -132,13 +155,20 @@ async function loadMessages() {
       canonicalFolder: activeFolder.value,
       keyword: keyword.value.trim() || undefined,
       unreadOnly: unreadOnly.value || undefined,
-      pageNo: 1,
-      pageSize: 50,
+      pageNo: pageNo.value,
+      pageSize: PAGE_SIZE,
     });
     mails.value = resp.result?.records ?? [];
+    total.value = resp.result?.total ?? 0;
+    // 当前页被删空且非首页时回退一页
+    if (!mails.value.length && pageNo.value > 1) {
+      pageNo.value -= 1;
+      await loadMessages();
+    }
   } catch (e) {
     errorMsg.value = `加载邮件列表失败：${(e as Error).message}`;
     mails.value = [];
+    total.value = 0;
   } finally {
     loading.value = false;
   }
@@ -193,9 +223,45 @@ function toggleSelect(id: string, checked: boolean) {
 
 function openDetail(mail: MailMessageIndex) {
   selectedId.value = mail.id;
-  // 后端 PATCH /read 未实现（B-3），此处仅本地置位，不落库
-  mail.readFlag = true;
+  detail.value = null;
+  detailLoading.value = true;
+  getMailMessage(mail.id)
+    .then((resp) => {
+      detail.value = resp.result ?? null;
+      // 打开即已读（服务端已回写 \Seen 与索引），本地同步置位
+      const local = mails.value.find((m) => m.id === mail.id);
+      if (local) local.readFlag = true;
+    })
+    .catch((e) => {
+      errorMsg.value = `读取正文失败：${(e as Error).message}`;
+    })
+    .finally(() => {
+      detailLoading.value = false;
+    });
 }
+
+/** HTML 兜底去标签：正文优先 text，html-only 邮件本地剥标签后展示（不引入 v-html，防邮件 XSS） */
+function stripHtml(html: string): string {
+  return html
+    .replace(/<(script|style)[\s\S]*?<\/\1>/gi, ' ')
+    .replace(/<br\s*\/?>/gi, '\n')
+    .replace(/<\/(p|div|li|tr)>/gi, '\n')
+    .replace(/<[^>]+>/g, ' ')
+    .replace(/&nbsp;/g, ' ')
+    .replace(/&amp;/g, '&')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&quot;/g, '"')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim();
+}
+const readerBody = computed(() => {
+  if (!detail.value) return selectedMail.value?.snippet ?? '';
+  return detail.value.text || (detail.value.html ? stripHtml(detail.value.html) : '');
+});
+const readerMail = computed(() =>
+  detail.value && detail.value.id === selectedId.value ? detail.value : selectedMail.value,
+);
 
 /** 时间列：今天显时刻，历史显日期（Outlook 口径） */
 function rowTime(t: string): string {
@@ -206,21 +272,49 @@ function rowTime(t: string): string {
   return t.slice(5, 10);
 }
 
-// ---- 命令栏动作（后端未实现，保持本地） ----
-function markAllRead() {
-  folderMails.value.forEach((m) => (m.readFlag = true));
-  syncHint.value = `本地已标记；${UNIMPLEMENTED_NOTICE}`;
+// ---- 命令栏动作 ----
+async function markAllRead() {
+  const unread = mails.value.filter((m) => !m.readFlag);
+  if (!unread.length) {
+    syncHint.value = '当前页没有未读邮件。';
+    return;
+  }
+  let marked = 0;
+  for (const m of unread) {
+    try {
+      await markMailRead(m.id, true);
+      m.readFlag = true;
+      marked += 1;
+    } catch (e) {
+      errorMsg.value = `标记已读失败（${marked}/${unread.length}）：${(e as Error).message}`;
+      return;
+    }
+  }
+  syncHint.value = `已标记 ${marked} 封为已读（未读筛选下它们将随即从列表消失）。`;
 }
 
-function removeSelected() {
+async function removeSelected() {
   if (!selectedIds.value.length) return;
-  const n = selectedIds.value.length;
-  mails.value = mails.value.filter((m) => !selectedIds.value.includes(m.id));
-  if (selectedId.value !== null && selectedIds.value.includes(selectedId.value)) {
+  const ids = [...selectedIds.value];
+  let removed = 0;
+  for (const id of ids) {
+    try {
+      await deleteMailMessage(id);
+      removed += 1;
+    } catch (e) {
+      errorMsg.value = `删除失败（${removed}/${ids.length}）：${(e as Error).message}`;
+      break;
+    }
+  }
+  if (selectedId.value && ids.includes(selectedId.value)) {
     selectedId.value = null;
+    detail.value = null;
   }
   selectedIds.value = [];
-  syncHint.value = `本地已移除 ${n} 封；${UNIMPLEMENTED_NOTICE}`;
+  syncHint.value = removed === ids.length
+    ? `已删除 ${removed} 封（有「已删除」映射则移入其中，否则永久删除）。`
+    : `已删除 ${removed}/${ids.length} 封，其余失败见上方错误。`;
+  await loadMessages();
 }
 
 // ---- 写信 ----
@@ -234,15 +328,28 @@ function openComposer(mode: MailSendMode, mail?: MailMessageIndex) {
   composerOpen.value = true;
 }
 
-function submitComposer(payload: { to: string; subject: string; html: string }) {
+async function submitComposer(payload: { to: string; subject: string; html: string }) {
   errorMsg.value = '';
   composer.value = { to: payload.to, subject: payload.subject, html: payload.html };
   if (!payload.to.trim() || !payload.subject.trim()) {
     errorMsg.value = '收件人与主题为必填。';
     return;
   }
-  composerOpen.value = false;
-  syncHint.value = `未投递；${UNIMPLEMENTED_NOTICE}`;
+  if (!myAccount.value) return;
+  try {
+    await sendMailMessage({
+      accountId: myAccount.value.id,
+      mode: composerMode.value,
+      to: payload.to.trim(),
+      subject: payload.subject.trim(),
+      html: payload.html,
+    });
+    composerOpen.value = false;
+    syncHint.value = '已投递；「已发送」文件夹在下次同步后可见。';
+    await loadMessages();
+  } catch (e) {
+    errorMsg.value = `发送失败：${(e as Error).message}`;
+  }
 }
 
 onMounted(bootstrap);
@@ -331,7 +438,7 @@ onMounted(bootstrap);
               aria-label="全选"
               @change="toggleAll(($event.target as HTMLInputElement).checked)"
             />
-            <span class="mail-list-pane__total">共 {{ folderMails.length }} 封</span>
+            <span class="mail-list-pane__total">共 {{ total }} 封</span>
           </div>
 
           <div v-if="loading" class="mail-empty">加载中…</div>
@@ -351,22 +458,34 @@ onMounted(bootstrap);
             />
             <li v-if="!folderMails.length" class="mail-empty">当前文件夹暂无邮件</li>
           </ul>
+
+          <div v-if="totalPages > 1" class="mail-pager">
+            <button type="button" class="cmd-btn" :disabled="pageNo <= 1 || loading" @click="gotoPage(pageNo - 1)">
+              上一页
+            </button>
+            <span class="mail-pager__info">{{ pageNo }} / {{ totalPages }} 页</span>
+            <button
+              type="button"
+              class="cmd-btn"
+              :disabled="pageNo >= totalPages || loading"
+              @click="gotoPage(pageNo + 1)"
+            >
+              下一页
+            </button>
+          </div>
         </section>
 
         <MailReadingPane
           v-if="selectedMail"
-          :subject="selectedMail.subject"
-          :sender-name="selectedMail.fromName"
-          :sender-address="selectedMail.fromAddressHash"
-          :recipient-line="selectedMail.toSummary || '—'"
-          :time="selectedMail.receivedTime"
-          :notice="UNIMPLEMENTED_NOTICE"
-          notice-action-text="知道了"
-          :body="selectedMail.snippet"
+          :subject="readerMail?.subject"
+          :sender-name="readerMail?.fromName"
+          :sender-address="readerMail?.fromAddressHash"
+          :recipient-line="readerMail?.toSummary || '—'"
+          :time="readerMail?.receivedTime"
+          :body="detailLoading ? '正在读取正文…' : readerBody"
           @reply="openComposer('reply', selectedMail)"
           @reply-all="openComposer('replyAll', selectedMail)"
           @forward="openComposer('forward', selectedMail)"
-          @notice-action="syncHint = ''"
         />
         <section v-else class="mail-reader-empty">
           <PhEnvelopeSimple :size="40" />
@@ -473,6 +592,20 @@ onMounted(bootstrap);
   margin: 0;
   padding: 0;
   overflow-y: auto;
+}
+
+.mail-pager {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--spacing-md);
+  padding: 6px var(--spacing-lg);
+  border-top: 1px solid var(--border-color);
+}
+
+.mail-pager__info {
+  font-size: var(--font-size-sm);
+  color: var(--text-muted);
 }
 
 .mail-empty {

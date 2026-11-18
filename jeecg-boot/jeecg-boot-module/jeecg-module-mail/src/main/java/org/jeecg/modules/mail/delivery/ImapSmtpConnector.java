@@ -14,6 +14,7 @@ import jakarta.mail.MessagingException;
 import jakarta.mail.Session;
 import jakarta.mail.Store;
 import jakarta.mail.Transport;
+import jakarta.mail.internet.MimeMessage;
 
 /**
  * @Description: IMAP/SMTP 双测连器（B-1）
@@ -113,6 +114,36 @@ public class ImapSmtpConnector {
         }
         result.setLatencyMs(System.currentTimeMillis() - start);
         return result;
+    }
+
+    /**
+     * 经绑定账号 SMTP 发送一封已构建的消息（B-6）。
+     * 超时/SSL 口径与 testSmtp 一致；发送失败按错误分类抛 MessagingException。
+     */
+    public void send(MailServerConfig cfg, MimeMessage message) throws MessagingException {
+        Session session = buildSmtpSession(cfg);
+        Transport transport = session.getTransport(MailConnectionDefaults.PROTOCOL_SMTP);
+        try {
+            transport.connect(cfg.getHost(), cfg.getPort(), cfg.getUsername(), cfg.getPassword());
+            transport.sendMessage(message, message.getAllRecipients());
+        } finally {
+            transport.close();
+        }
+    }
+
+    /**
+     * 构建 SMTP Session（与测连同口径：auth/超时/SSL）。
+     */
+    public Session buildSmtpSession(MailServerConfig cfg) {
+        Properties props = new Properties();
+        props.put("mail.smtp.auth", "true");
+        props.put("mail.smtp.connectiontimeout", MailConnectionDefaults.TIMEOUT_MS);
+        props.put("mail.smtp.timeout", MailConnectionDefaults.TIMEOUT_MS);
+        props.put("mail.smtp.writetimeout", MailConnectionDefaults.TIMEOUT_MS);
+        if (cfg.isSsl()) {
+            props.put("mail.smtp.ssl.enable", "true");
+        }
+        return Session.getInstance(props);
     }
 
     /**

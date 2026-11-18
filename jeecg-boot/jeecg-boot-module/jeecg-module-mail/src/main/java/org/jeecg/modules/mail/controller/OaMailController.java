@@ -13,6 +13,8 @@ import org.jeecg.modules.mail.dto.MailAccountBindReqDTO;
 import org.jeecg.modules.mail.dto.MailFolderMappingReqDTO;
 import org.jeecg.modules.mail.dto.MailSyncStatusDTO;
 import org.jeecg.modules.mail.dto.OaMailAccountRespDTO;
+import org.jeecg.modules.mail.dto.OaMailMessageDetailDTO;
+import org.jeecg.modules.mail.dto.SendMailMessageReqDTO;
 import org.jeecg.modules.mail.entity.OaMailFolderState;
 import org.jeecg.modules.mail.entity.OaMailMessageIndex;
 import org.jeecg.modules.mail.service.IOaMailService;
@@ -21,6 +23,7 @@ import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -161,6 +164,52 @@ public class OaMailController {
             @Parameter(description = "页码", example = "1") @RequestParam(name = "pageNo", defaultValue = "1") Integer pageNo,
             @Parameter(description = "每页条数", example = "10") @RequestParam(name = "pageSize", defaultValue = "10") Integer pageSize) {
         return Result.OK(oaMailService.pageMessages(accountId, canonicalFolder, keyword, unreadOnly, pageNo, pageSize));
+    }
+
+    @AutoLog(value = "OA邮件-邮件详情")
+    @Operation(summary = "邮件详情（B-3）：实时 FETCH 正文，打开即回写已读",
+            description = "正文按需从 IMAP 抓取不落库；text/plain 优先、text/html 兜底；附件仅元数据；"
+                    + "正文超 256K 截断并标记 truncated。错误场景：邮件不存在/文件夹未映射/远端 UID 失效。")
+    @RequiresPermissions("team:mail:message:list")
+    @GetMapping("/messages/{id}")
+    public Result<OaMailMessageDetailDTO> messageDetail(
+            @Parameter(description = "邮件索引 id", required = true) @PathVariable("id") String id) {
+        return Result.OK(oaMailService.getMessageDetail(id));
+    }
+
+    @AutoLog(value = "OA邮件-已读置位")
+    @Operation(summary = "已读/未读置位（B-3）",
+            description = "IMAP \\Seen 回写 + 索引 read_flag 同步；目标状态与当前一致时短路无操作。")
+    @RequiresPermissions("team:mail:message:list")
+    @PatchMapping("/messages/{id}/read")
+    public Result<String> markRead(
+            @Parameter(description = "邮件索引 id", required = true) @PathVariable("id") String id,
+            @RequestBody Map<String, Object> body) {
+        boolean read = !Boolean.FALSE.equals(body == null ? null : body.get("read"));
+        oaMailService.markMessageRead(id, read);
+        return Result.OK("ok");
+    }
+
+    @AutoLog(value = "OA邮件-删除邮件")
+    @Operation(summary = "删除邮件（B-5）",
+            description = "有「已删除」文件夹映射且当前不在其中 → 移入 Trash；否则永久删除（expunge）。"
+                    + "索引行同步删除。错误场景：邮件不存在/文件夹未映射/远端操作失败（索引不删，可重试）。")
+    @RequiresPermissions("team:mail:mailbox:delete")
+    @DeleteMapping("/messages/{id}")
+    public Result<String> deleteMessage(
+            @Parameter(description = "邮件索引 id", required = true) @PathVariable("id") String id) {
+        oaMailService.deleteMessage(id);
+        return Result.OK("ok");
+    }
+
+    @AutoLog(value = "OA邮件-写信发送")
+    @Operation(summary = "经绑定账号 SMTP 发送（B-6）",
+            description = "to 必填（支持逗号/分号多地址），html 正文必填；发后 best-effort 追加「已发送」"
+                    + "（未映射 Sent 仅告警不入档）。mode/replyToMessageId/attachments/idempotencyKey 为契约预留本期不实施。")
+    @RequiresPermissions("team:mail:send")
+    @PostMapping("/messages/send")
+    public Result<String> send(@RequestBody SendMailMessageReqDTO req) {
+        return Result.OK(oaMailService.sendMessage(req));
     }
 
     /**
