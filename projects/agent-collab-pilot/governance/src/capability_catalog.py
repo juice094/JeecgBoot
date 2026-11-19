@@ -8,9 +8,10 @@
     python capability_catalog.py --check        # 只比对不落盘（CI/门模式，漂移 exit 1）
 
 模型源：~/.kimi-code/config.toml 的 [models."<id>"] 段
-（provider/model/max_context_size/display_name，tomllib 解析，Python 3.12 stdlib）。
+（provider/model/max_context_size/display_name/default_effort，tomllib 解析，Python 3.12 stdlib）。
 yaml 序列化用 stdlib 手工拼（零新依赖军规），generated 戳取当前日期；
 diff_with_existing 忽略 generated 行，改配置导致的条目增减即漂移。
+default_effort 缺省的条目（如 ofm 系模型）省略该键，与 display 键同口径。
 """
 
 from __future__ import annotations
@@ -27,9 +28,9 @@ DEFAULT_OUTPUT = Path(__file__).resolve().parent.parent / "capability-catalog.ya
 
 
 def scan_models(config_path: Path) -> list[dict[str, object]]:
-    """扫描 config.toml，返回模型条目列表（dict 键：id/provider/model/context/display）。
+    """扫描 config.toml，返回模型条目列表（dict 键：id/provider/model/context/display/effort）。
 
-    display_name 缺省时省略 display 键（如 ofm 系模型）；顺序保持 config 原文序。
+    display_name 与 default_effort 缺省时省略对应键（如 ofm 系模型）；顺序保持 config 原文序。
     """
     with config_path.open("rb") as handle:
         data = tomllib.load(handle)
@@ -45,6 +46,8 @@ def scan_models(config_path: Path) -> list[dict[str, object]]:
         }
         if entry.get("display_name"):
             item["display"] = entry["display_name"]
+        if entry.get("default_effort"):
+            item["default_effort"] = entry["default_effort"]
         models.append(item)
     return models
 
@@ -78,7 +81,7 @@ def render_catalog(models: list[dict[str, object]], today: str) -> str:
     ]
     for model in models:
         lines.append(f"  - id: {_yaml_scalar(model['id'])}")
-        for key in ("display", "provider", "model", "context"):
+        for key in ("display", "provider", "model", "context", "default_effort"):
             if key in model:
                 lines.append(f"    {key}: {_yaml_scalar(model[key])}")
     return "\n".join(lines) + "\n"

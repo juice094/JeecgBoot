@@ -27,4 +27,5 @@ governance/
 - 模型白名单以 `members/pool.yaml` 为唯一权威源；政策/契约只引用 `capability-catalog.yaml` 里的 `id`，**禁止引用 display_name**（K2.8/K3 事件根因）。
 - 派工必经契约：`cp contracts/_template.yaml contracts/AGT-YYYY-NNNN.yaml`，填全五段（member/model/scope/verification/red-lines），`confirm-gate` 非空即需人类一字确认。
 - 生成物（capability-catalog.yaml）头部有 `generated` 戳；手改会被 drift_check 抓住。
+- 思考档政策：`default_effort` 禁止为 `max`（max 档 token 流失实证，2026-11-19 宿指出）；硬任务由主会话在派工单显式声明，不走条目默认档。drift_check D3 把关：目录出现 max 默认档即漂移 P2。
 - 测试：`python -m pytest tests/ -q`（零依赖，stdlib unittest 亦可跑）。

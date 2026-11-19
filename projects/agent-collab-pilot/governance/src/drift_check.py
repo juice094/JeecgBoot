@@ -5,6 +5,8 @@
      以及 C:/Users/22414/.agents/AGENTS.md 中反引号别名 kimi-code/*、deepseek/*），
      出现的模型引用必须是 capability-catalog.yaml 里的 id；目录外引用=漂移。
   D2 生成物↔源：capability_catalog.py --check 的退出码接力（1=目录与 config.toml 漂移）。
+  D3 思考档政策：目录中任一模型 default_effort="max" 即漂移 P2——max 禁止作为条目默认档
+     （token 流失实证，见 governance/README.md 军规），硬任务由主会话在派工单显式声明。
 
 用法：python drift_check.py [--root governance目录]；exit 0=无漂移，1=有漂移。
 """
@@ -70,6 +72,18 @@ def check_policy_vs_catalog(root: Path) -> list[str]:
     return drifts
 
 
+def check_default_effort_policy(catalog: dict[str, object]) -> list[str]:
+    """D3：目录条目 default_effort 禁止为 max。返回 drift 列表（P2 级政策）。"""
+    drifts = []
+    for entry in contract_lint._as_list(catalog.get("models")):
+        if isinstance(entry, dict) and entry.get("default_effort") == "max":
+            drifts.append(
+                f"D3: 目录条目 '{entry.get('id')}' default_effort=max（P2：max 禁止作为条目默认档，"
+                "硬任务由主会话在派工单显式声明）"
+            )
+    return drifts
+
+
 def check_generated_vs_source(root: Path) -> list[str]:
     """D2：调 capability_catalog.py --check。返回 drift 列表。"""
     script = root / "src" / "capability_catalog.py"
@@ -95,13 +109,19 @@ def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--root", type=Path, default=GOVERNANCE_ROOT)
     args = parser.parse_args(argv)
-    drifts = check_policy_vs_catalog(args.root) + check_generated_vs_source(args.root)
+    catalog_path = args.root / "capability-catalog.yaml"
+    if catalog_path.exists():
+        catalog = contract_lint.load_restricted_yaml(catalog_path)
+        effort_drifts = check_default_effort_policy(catalog)
+    else:
+        effort_drifts = []  # 目录缺失由 D1 上报，不重复
+    drifts = check_policy_vs_catalog(args.root) + check_generated_vs_source(args.root) + effort_drifts
     if drifts:
         print(f"漂移检测：发现 {len(drifts)} 项漂移")
         for drift in drifts:
             print(f"  {drift}")
         return 1
-    print("漂移检测：无漂移（D1 政策↔目录 / D2 生成物↔源 均通过）")
+    print("漂移检测：无漂移（D1 政策↔目录 / D2 生成物↔源 / D3 思考档政策 均通过）")
     return 0
 
 

@@ -1,8 +1,8 @@
-"""contract_lint 表驱动测试（治理基座 M3/M4）。
+"""contract_lint / drift_check 表驱动测试（治理基座 M3/M4/M6）。
 
 每条规则正反两例（内存契约 dict 直查规则函数）；R2 另有一个端到端夹具：
 临时契约 yaml 字面写 model: "K2.8 Preview"（display_name 引用）过 lint()，
-是 K2.8/K3 事件的回归防线。夹具只写系统临时目录，不入 members/。
+是 K2.8/K3 事件的回归防线。R6/D3 各带端到端反例。夹具只写系统临时目录，不入 members/。
 正例基准：contracts/_template.yaml 自身必须 lint 全过
 （member/model 空串按豁免规则处理，见 contract_lint.lint docstring）。
 跑法：python -m unittest discover tests -v（pytest 亦可收集）。
@@ -19,6 +19,7 @@ SRC_DIR = Path(__file__).resolve().parent.parent / "src"
 sys.path.insert(0, str(SRC_DIR))
 
 import contract_lint  # noqa: E402
+import drift_check  # noqa: E402
 
 POOL: dict[str, object] = {
     "pool": [
@@ -144,10 +145,75 @@ class ContractLintRulesTest(unittest.TestCase):
             ],
         )
 
+    def test_r6_model_must_match_pool_binding(self) -> None:
+        def check(contract: dict[str, object]) -> list[str]:
+            return contract_lint.check_r6_model_matches_pool(contract, POOL)
+
+        self.assert_cases(
+            check,
+            [
+                ("正例-k2.8-绑定一致", make_contract(), 0),
+                ("正例-flash-绑定一致", make_contract(member="flash", model="deepseek/deepseek-flash"), 0),
+                ("反例-写同族非绑定模型", make_contract(model="kimi-code/kimi-for-coding-low"), 1),
+                ("反例-写池内另一成员模型", make_contract(model="deepseek/deepseek-flash"), 1),
+                ("静默-member-不在池", make_contract(member="k3"), 0),
+                ("豁免-空-member", make_contract(member=""), 0),
+                ("豁免-空-model", make_contract(model=""), 0),
+            ],
+        )
+
+    def test_r6_binding_mismatch_via_lint_caught(self) -> None:
+        """端到端：临时契约 member=k2.8 但 model 写 low 档（目录内 id 但非该 member 绑定模型），lint() 必报 [文件/R6]。"""
+        text = (
+            'contract: "AGT-2026-9997"\n'
+            "member: k2.8\n"
+            "model: kimi-code/kimi-for-coding-low\n"
+            "scope:\n"
+            "  repos: [jeecg-team-web]\n"
+            "  write: [\"**/src/**\"]\n"
+            "  deny: [.env]\n"
+            "verification: L1-typecheck\n"
+            "confirm-gate: []\n"
+            "red-lines: [no-rm-rf, recycle-bin]\n"
+        )
+        with tempfile.TemporaryDirectory() as tmp:
+            fixture = Path(tmp) / "binding-mismatch.contract.yaml"
+            fixture.write_text(text, encoding="utf-8")
+            defects = contract_lint.lint(fixture)
+        self.assertTrue(any(d.startswith(f"[{fixture.name}/R6]") for d in defects), f"未见 R6 defect：{defects}")
+
     def test_template_itself_lints_clean(self) -> None:
         """_template.yaml 是正例基准：member/model 空串按豁免规则整单跳过，必须零 defect。"""
         template = Path(__file__).resolve().parent.parent / "contracts" / "_template.yaml"
         self.assertEqual(contract_lint.lint(template), [])
+
+
+class DriftCheckEffortPolicyTest(unittest.TestCase):
+    def test_d3_default_effort_max_is_drift(self) -> None:
+        catalog_ok: dict[str, object] = {
+            "models": [
+                {"id": "kimi-code/kimi-for-coding", "default_effort": "high"},
+                {"id": "kimi-code/kimi-for-coding-low", "default_effort": "low"},
+                {"id": "kimi-code/kimi-for-coding-highspeed"},
+            ]
+        }
+        catalog_bad: dict[str, object] = {
+            "models": [
+                {"id": "kimi-code/kimi-for-coding", "default_effort": "high"},
+                {"id": "kimi-code/k3", "default_effort": "max"},
+            ]
+        }
+        self.assertEqual(drift_check.check_default_effort_policy(catalog_ok), [])
+        drifts = drift_check.check_default_effort_policy(catalog_bad)
+        self.assertEqual(len(drifts), 1, f"max 默认档必须被抓：{drifts}")
+        self.assertIn("kimi-code/k3", drifts[0])
+        self.assertIn("P2", drifts[0])
+
+    def test_d3_real_catalog_has_no_max_default(self) -> None:
+        """现况验收：真实 capability-catalog.yaml 不得含 max 默认档（config 现况 high/low/high）。"""
+        catalog_path = Path(__file__).resolve().parent.parent / "capability-catalog.yaml"
+        catalog = contract_lint.load_restricted_yaml(catalog_path)
+        self.assertEqual(drift_check.check_default_effort_policy(catalog), [])
 
 
 if __name__ == "__main__":

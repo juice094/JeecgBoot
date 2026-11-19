@@ -11,3 +11,8 @@ pool:
     role: batch-operator
     status: active
     note: deepseek 钱包额度独立；Moonshot 限流时兜底
+  - member: k2.8-low             # low 档变体（2026-11-19 宿指派驻单）：机械施工/移植/冒烟类
+    model: kimi-code/kimi-for-coding-low  # 同 K2.8 Preview 模型，default_effort=low
+    role: mechanical-constructor
+    status: active
+    note: 复杂推理勿派；外部线不顺时 W1 回收的首派成员

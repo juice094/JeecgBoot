@@ -7,17 +7,15 @@
   R3 scope.deny 与 scope.write 出现同一 glob（deny 优先但有歧义，按 defect 上报请作者确认）
   R4 red-lines 必含 no-rm-rf 与 recycle-bin
   R5 confirm-gate 非空时 verification 不得为空
+  R6 契约 model 必须等于 pool.yaml 中该 member 条目的 model（member↔pool 绑定一致性）
 
 豁免：member 或 model 为空串时视为未填模板（contracts/_template.yaml 的占位语义），
-整单跳过 R1-R5——模板只是骨架占位，不承担派工语义；只要填了 member 就全量校验。
+整单跳过 R1-R6——模板只是骨架占位，不承担派工语义；只要填了 member 就全量校验。
 
 用法：python contract_lint.py <契约.yaml> [更多契约...]；exit 0=全过，1=有 defect。
 解析 YAML 用 stdlib 手工解析本仓库受限子集（键: 值、缩进列表、字符串列表），不引第三方。
 受限子集：整行/行尾注释（引号感知）、key: value、key: 嵌套块、`- 标量`、`- key: value`、
 内联列表 [a, "b"]、双引号字符串、整数、true/false。不支持多行字符串与流式映射。
-
-未实现（骨架遗留，超出本单范围）：R6 write glob 前缀覆盖 deny 检查——`**` 前缀语义易误报，
-待有真实案例再定口径。
 """
 
 from __future__ import annotations
@@ -274,11 +272,29 @@ def check_r5_confirm_gate_needs_verification(contract: dict[str, object]) -> lis
     return []
 
 
+def check_r6_model_matches_pool(contract: dict[str, object], pool: dict[str, object]) -> list[str]:
+    """R6：契约 model 必须等于 pool.yaml 中该 member 条目的 model（绑定一致性）。
+
+    member 不在池时静默（R1 已报，不重复）；member/model 为空视为未填模板，豁免。
+    """
+    member = contract.get("member")
+    model = contract.get("model")
+    if member in (None, "") or model in (None, ""):
+        return []
+    for entry in _as_list(pool.get("pool")):
+        if isinstance(entry, dict) and entry.get("member") == member:
+            bound = entry.get("model")
+            if bound == model:
+                return []
+            return [f"member '{member}' 绑定模型为 '{bound}'，契约 model 写 '{model}'（member↔pool 绑定不一致）"]
+    return []
+
+
 def lint(path: Path) -> list[str]:
     """对单个契约跑全部规则，返回 defect 列表（带 [契约名/规则号] 前缀）。
 
     豁免：member 或 model 为空串 ⇒ 视为未填模板（contracts/_template.yaml 的占位语义），
-    整单跳过 R1-R5；填了 member 即全量校验。
+    整单跳过 R1-R6；填了 member 即全量校验。
     """
     contract = load_restricted_yaml(path)
     if contract.get("member") in (None, "") or contract.get("model") in (None, ""):
@@ -298,6 +314,7 @@ def lint(path: Path) -> list[str]:
         ("R3", check_r3_deny_overlaps_write(contract)),
         ("R4", check_r4_red_lines(contract)),
         ("R5", check_r5_confirm_gate_needs_verification(contract)),
+        ("R6", check_r6_model_matches_pool(contract, pool)),
     ]
     return [f"[{path.name}/{rule}] {message}" for rule, messages in checks for message in messages]
 
