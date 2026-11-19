@@ -362,10 +362,11 @@ if (dataRules == null || dataRules.isEmpty()) {
 
 - [x] `PermissionDataAspect` 空规则告警/拒绝双模式（开关 `jeecg.permission.dataRule.strict`，默认告警）
 - [x] 存量回填脚本（`backfill-role-permission.sql`，**手动执行**，不进 Flyway）
+- [x] 事件监听器 `PermissionGrantNotifyListener`（装配 jeecg-system-start，站内信通道；邮件待模板+SMTP 后追加）
 - [ ] Mapper 层默认最小集 —— 暂缓：需按模块灰度，先看告警清单
 - [ ] `TeamAuditBizType` 新增 PERMISSION —— 暂缓：system 层不可依赖 team 模块，领域事件已覆盖
 
-**落地说明**：P2 采用"先告警、后拒绝"的两段式，避免一次性切断存量接口。告警模式实测已产生 `【数据权限告警】` 日志且不影响返回。
+**落地说明**：P2 采用"先告警、后拒绝"的两段式，避免一次性切断存量接口。告警模式实测已产生 `【数据权限告警】` 日志且不影响返回。通知实测：一次申请产生 待审批/已批准/已生效 三条站内信（sys_announcement + send 落库，read_flag=0）。
 
 ### P3：复核
 

@@ -114,7 +114,7 @@ public class SysPermissionGrantServiceImpl extends ServiceImpl<SysPermissionGran
                 .setApprover(designatedApprover)
                 .setAction(STEP_WAIT);
         stepMapper.insert(step);
-        publish(PermissionGrantEvent.SUBMITTED, grant, username);
+        publish(PermissionGrantEvent.SUBMITTED, grant, username, designatedApprover);
         return grant;
     }
 
@@ -397,9 +397,13 @@ public class SysPermissionGrantServiceImpl extends ServiceImpl<SysPermissionGran
      * 监听器装配在 jeecg-system-start（可依赖 mail），system 层不依赖 mail。
      */
     private void publish(String eventType, SysPermissionGrant grant, String operator) {
+        publish(eventType, grant, operator, grant.getApprover());
+    }
+
+    private void publish(String eventType, SysPermissionGrant grant, String operator, String approver) {
         try {
             eventPublisher.publishEvent(new PermissionGrantEvent(this, eventType, grant.getId(), grant.getGrantNo(),
-                    grant.getSubjectType(), grant.getSubjectId(), grant.getApplicant(), operator));
+                    grant.getSubjectType(), grant.getSubjectId(), grant.getApplicant(), operator, approver));
         } catch (Exception e) {
             log.warn("发布授权事件失败 type={} grantNo={}: {}", eventType, grant.getGrantNo(), e.getMessage());
         }

@@ -30,9 +30,16 @@ public class PermissionGrantEvent extends ApplicationEvent {
     private final String subjectId;
     private final String applicant;
     private final String operator;
+    private final String approver;
 
     public PermissionGrantEvent(Object source, String eventType, String grantId, String grantNo,
                                 String subjectType, String subjectId, String applicant, String operator) {
+        this(source, eventType, grantId, grantNo, subjectType, subjectId, applicant, operator, null);
+    }
+
+    public PermissionGrantEvent(Object source, String eventType, String grantId, String grantNo,
+                                String subjectType, String subjectId, String applicant, String operator,
+                                String approver) {
         super(source);
         this.eventType = eventType;
         this.grantId = grantId;
@@ -41,6 +48,7 @@ public class PermissionGrantEvent extends ApplicationEvent {
         this.subjectId = subjectId;
         this.applicant = applicant;
         this.operator = operator;
+        this.approver = approver;
     }
 
     public String getEventType() {
@@ -69,5 +77,9 @@ public class PermissionGrantEvent extends ApplicationEvent {
 
     public String getOperator() {
         return operator;
+    }
+
+    public String getApprover() {
+        return approver;
     }
 }
