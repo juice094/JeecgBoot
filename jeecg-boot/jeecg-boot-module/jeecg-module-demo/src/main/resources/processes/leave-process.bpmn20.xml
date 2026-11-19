@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<definitions xmlns="http://www.omg.org/spec/BPMN/20100524/MODEL"
+             xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+             xmlns:flowable="http://flowable.org/bpmn"
+             targetNamespace="http://flowable.org/bpmn">
+    <process id="leaveProcess" name="请假审批最小流程" isExecutable="true">
+        <startEvent id="startEvent" name="提交请假"/>
+        <userTask id="supervisorApprove" name="主管审批" flowable:assignee="leader"/>
+        <userTask id="archiveTask" name="归档" flowable:assignee="archiver"/>
+        <endEvent id="endEvent" name="结束"/>
+        <sequenceFlow id="flowStartToApprove" sourceRef="startEvent" targetRef="supervisorApprove"/>
+        <sequenceFlow id="flowApproveToArchive" sourceRef="supervisorApprove" targetRef="archiveTask"/>
+        <sequenceFlow id="flowArchiveToEnd" sourceRef="archiveTask" targetRef="endEvent"/>
+    </process>
+</definitions>

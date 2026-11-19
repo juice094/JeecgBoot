@@ -18,6 +18,8 @@
         <module>jeecg-module-team</module>
         <!-- OA 邮件体系：未立项骨架，独立编译，不注册进 jeecg-system-start 运行时 -->
         <module>jeecg-module-mail</module>
+        <!-- 流程域服务：立项草案阶段骨架（docs/27），独立编译，不注册进 jeecg-system-start 运行时 -->
+        <module>jeecg-module-flow</module>
     </modules>
 
 
