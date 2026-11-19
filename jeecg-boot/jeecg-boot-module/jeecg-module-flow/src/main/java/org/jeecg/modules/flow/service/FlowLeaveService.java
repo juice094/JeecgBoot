@@ -1,4 +1,4 @@
-package org.jeecg.modules.demo.flowable.service;
+package org.jeecg.modules.flow.service;
 
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
@@ -15,11 +15,11 @@ import java.util.Map;
 
 /**
  * Flowable 最小请假流程：主管审批 -> 归档
- * 仅用于 Spring Boot 4.1 兼容性尖刺验证，不代表最终业务设计
+ * 由 demo 模块尖刺移植而来，仅用于 W1 引擎落地冒烟验证，不代表最终业务设计
  */
 @Slf4j
 @Service
-public class DemoFlowableLeaveService {
+public class FlowLeaveService {
 
     /** 流程定义 key，与 processes/leave-process.bpmn20.xml 中的 process id 一致 */
     private static final String PROCESS_KEY_LEAVE = "leaveProcess";
@@ -27,9 +27,9 @@ public class DemoFlowableLeaveService {
     private static final String TASK_DEF_KEY_SUPERVISOR_APPROVE = "supervisorApprove";
     /** 归档节点定义 key */
     private static final String TASK_DEF_KEY_ARCHIVE = "archiveTask";
-    /** 主管审批人（尖刺用静态办理人，不接用户体系） */
+    /** 主管审批人（冒烟用静态办理人，不接用户体系） */
     private static final String ASSIGNEE_SUPERVISOR = "leader";
-    /** 归档办理人（尖刺用静态办理人，不接用户体系） */
+    /** 归档办理人（冒烟用静态办理人，不接用户体系） */
     private static final String ASSIGNEE_ARCHIVER = "archiver";
     /** 变量 key：申请人 */
     private static final String VAR_APPLICANT = "applicant";
@@ -88,7 +88,7 @@ public class DemoFlowableLeaveService {
         }
         completeTask(processInstanceId, TASK_DEF_KEY_SUPERVISOR_APPROVE, ASSIGNEE_SUPERVISOR, VAR_APPROVED, approved);
         log.info("supervisor task completed, processInstanceId={}, approved={}", processInstanceId, approved);
-        // 尖刺场景：模拟归档节点由系统自动办理，验证流程可完整走完
+        // 冒烟场景：模拟归档节点由系统自动办理，验证流程可完整走完
         completeTask(processInstanceId, TASK_DEF_KEY_ARCHIVE, ASSIGNEE_ARCHIVER, VAR_APPROVED, approved);
         log.info("archive task completed, processInstanceId={}", processInstanceId);
         return isProcessFinished(processInstanceId);

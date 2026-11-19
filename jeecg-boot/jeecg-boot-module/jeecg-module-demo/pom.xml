@@ -11,21 +11,10 @@
 
     <artifactId>jeecg-module-demo</artifactId>
 
-    <properties>
-        <!-- Flowable 8.0.0 起基于 Spring Boot 4（官方 release note 明确不再支持 Boot 3） -->
-        <flowable.version>8.0.0</flowable.version>
-    </properties>
-
     <dependencies>
         <dependency>
             <groupId>org.jeecgframework.boot3</groupId>
             <artifactId>jeecg-boot-base-core</artifactId>
-        </dependency>
-        <!-- Flowable 流程引擎最小 starter（仅 BPMN Process 引擎，不含 CMMN/DMN，控制引擎税） -->
-        <dependency>
-            <groupId>org.flowable</groupId>
-            <artifactId>flowable-spring-boot-starter-process</artifactId>
-            <version>${flowable.version}</version>
         </dependency>
     </dependencies>
 

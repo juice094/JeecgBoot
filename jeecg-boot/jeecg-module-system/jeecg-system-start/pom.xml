@@ -36,6 +36,14 @@
             <artifactId>jeecg-module-mail</artifactId>
             <version>${jeecgboot.version}</version>
         </dependency>
+        <!-- 流程域模块（Flowable 8.0.0 引擎）。
+             副作用声明（W1-T4）：注册后下次启动引擎将自检并建/续 jeecg-boot 库 39 张 act_* 表
+             （已存在则幂等跳过）；流程定义由 flow 模块编程式部署（FlowDeploymentConfig）。 -->
+        <dependency>
+            <groupId>org.jeecgframework.boot3</groupId>
+            <artifactId>jeecg-module-flow</artifactId>
+            <version>${jeecgboot.version}</version>
+        </dependency>
         
         <!-- flyway 数据库自动升级 -->
         <dependency>
