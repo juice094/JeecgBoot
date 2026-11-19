@@ -10,6 +10,7 @@ import jakarta.mail.internet.MimeMessage;
 
 import org.apache.commons.lang3.StringUtils;
 import org.jeecg.common.exception.JeecgBootException;
+import org.jeecg.common.log.EventLoggers;
 import org.jeecg.modules.mail.delivery.ImapSmtpConnector;
 import org.jeecg.modules.mail.delivery.MailConnectFailedException;
 import org.jeecg.modules.mail.dto.ConnectionTestResult;
@@ -29,6 +30,7 @@ import org.jeecg.modules.mail.mapper.OaMailFolderStateMapper;
 import org.jeecg.modules.mail.mapper.OaMailMessageIndexMapper;
 import org.jeecg.modules.mail.service.IOaMailService;
 import org.jeecg.modules.mail.support.MailBodyExtractor;
+import org.jeecg.modules.mail.support.MailDigests;
 import org.jeecg.modules.mail.support.MailPasswordCodec;
 import org.jeecg.modules.mail.sync.MailMessageOperator;
 import org.jeecg.modules.mail.sync.MailSyncTracker;
@@ -58,6 +60,18 @@ public class OaMailServiceImpl extends ServiceImpl<OaMailAccountMapper, OaMailAc
 
     /** 测连状态：通过 */
     private static final int TEST_STATUS_OK = 1;
+
+    /** 事件名（规划稿 §1 埋点清单） */
+    private static final String EVENT_MAIL_BIND = "mail.bind";
+    private static final String EVENT_MAIL_UNBIND = "mail.unbind";
+    private static final String EVENT_MAIL_SENT = "mail.sent";
+    private static final String EVENT_MAIL_DELETED = "mail.deleted";
+
+    /** 事件结果/拒绝原因口径 */
+    private static final String RESULT_OK = "ok";
+    private static final String RESULT_FAILED = "failed";
+    private static final String REASON_DUPLICATE = "duplicate";
+    private static final String REASON_CONNECT_TEST_FAILED = "connect_test_failed";
 
     private static final Logger log = LoggerFactory.getLogger(OaMailServiceImpl.class);
 
@@ -91,12 +105,18 @@ public class OaMailServiceImpl extends ServiceImpl<OaMailAccountMapper, OaMailAc
                 .eq(OaMailAccount::getEmail, req.getEmail().trim())
                 .eq(OaMailAccount::getCreateBy, owner));
         if (duplicates > 0) {
+            EventLoggers.info(EventLoggers.MAIL_EVENT, EVENT_MAIL_BIND,
+                    "emailHash", MailDigests.toHash8(req.getEmail().trim()),
+                    "result", RESULT_FAILED, "reason", REASON_DUPLICATE);
             throw new JeecgBootException("该邮箱已绑定: " + req.getEmail());
         }
 
         // 双测连通过才落库（B-1）；失败抛 MailConnectFailedException，由 REST 层组装结构化响应
         ConnectionTestResult testResult = connector.testBoth(req.getImap(), req.getSmtp());
         if (!testResult.allOk()) {
+            EventLoggers.info(EventLoggers.MAIL_EVENT, EVENT_MAIL_BIND,
+                    "emailHash", MailDigests.toHash8(req.getEmail().trim()),
+                    "result", RESULT_FAILED, "reason", REASON_CONNECT_TEST_FAILED);
             throw new MailConnectFailedException(testResult);
         }
 
@@ -108,6 +128,10 @@ public class OaMailServiceImpl extends ServiceImpl<OaMailAccountMapper, OaMailAc
         account.setCreateBy(owner);
         account.setCreateTime(new Date());
         save(account);
+        EventLoggers.info(EventLoggers.MAIL_EVENT, EVENT_MAIL_BIND,
+                "accountId", account.getId(),
+                "emailHash", MailDigests.toHash8(account.getEmail()),
+                "result", RESULT_OK);
         return account.getId();
     }
 
@@ -148,6 +172,8 @@ public class OaMailServiceImpl extends ServiceImpl<OaMailAccountMapper, OaMailAc
     public void unbind(String accountId) {
         getAndCheckOwnership(accountId);
         removeById(accountId);
+        EventLoggers.info(EventLoggers.MAIL_EVENT, EVENT_MAIL_UNBIND,
+                "accountId", accountId, "result", RESULT_OK);
     }
 
     @Override
@@ -321,18 +347,24 @@ public class OaMailServiceImpl extends ServiceImpl<OaMailAccountMapper, OaMailAc
         OaMailMessageIndex row = requireIndexRow(id);
         OaMailAccount account = getAndCheckOwnership(row.getAccountId());
         Store store = null;
+        String deleteMode = null;
         try {
             store = connector.openImapStore(toImapConfig(account));
             String remote = operator.resolveRemoteFolder(folderStateMapper, account.getId(),
                     MailCanonicalFolder.fromCode(row.getCanonicalFolder()));
             requireMappedFolder(remote, row.getCanonicalFolder());
-            operator.delete(store, account.getId(), folderStateMapper, remote, row.getImapUid());
+            deleteMode = operator.delete(store, account.getId(), folderStateMapper, remote, row.getImapUid());
         } catch (jakarta.mail.MessagingException e) {
             throw new JeecgBootException("删除邮件失败: " + e.getMessage(), e);
         } finally {
             closeStoreQuietly(store, account.getId());
         }
         indexMapper.deleteById(row.getId());
+        EventLoggers.info(EventLoggers.MAIL_EVENT, EVENT_MAIL_DELETED,
+                "accountId", account.getId(),
+                "mode", deleteMode,
+                "folder", row.getCanonicalFolder(),
+                "result", RESULT_OK);
     }
 
     @Override
@@ -348,8 +380,10 @@ public class OaMailServiceImpl extends ServiceImpl<OaMailAccountMapper, OaMailAc
         }
         OaMailAccount account = getAndCheckOwnership(req.getAccountId());
 
+        long sendStart = System.currentTimeMillis();
         jakarta.mail.Session session = connector.buildSmtpSession(toSmtpConfig(account));
         MimeMessage message;
+        String subject = StringUtils.defaultIfBlank(req.getSubject(), "(无主题)");
         try {
             message = new MimeMessage(session);
             message.setFrom(new InternetAddress(account.getEmail()));
@@ -362,16 +396,27 @@ public class OaMailServiceImpl extends ServiceImpl<OaMailAccountMapper, OaMailAc
                 message.setRecipients(jakarta.mail.Message.RecipientType.BCC,
                         parseAddresses(String.join(",", req.getBcc())));
             }
-            message.setSubject(StringUtils.defaultIfBlank(req.getSubject(), "(无主题)"), "UTF-8");
+            message.setSubject(subject, "UTF-8");
             message.setContent(req.getHtml(), "text/html; charset=UTF-8");
             message.saveChanges();
             connector.send(toSmtpConfig(account), message);
         } catch (jakarta.mail.MessagingException e) {
+            EventLoggers.info(EventLoggers.MAIL_EVENT, EVENT_MAIL_SENT,
+                    "accountId", account.getId(),
+                    "toHash", MailDigests.toHash8(req.getTo()),
+                    "result", RESULT_FAILED, "reason", e.getMessage());
             throw new JeecgBootException("发送失败: " + e.getMessage(), e);
         }
 
         // 发后归档已发送（best-effort，失败仅告警不阻断发送结果）
-        archiveToSentQuietly(account, message);
+        boolean archivedToSent = archiveToSentQuietly(account, message);
+        EventLoggers.info(EventLoggers.MAIL_EVENT, EVENT_MAIL_SENT,
+                "accountId", account.getId(),
+                "toHash", MailDigests.toHash8(req.getTo()),
+                "subjectHash", MailDigests.toHash8(subject),
+                "smtpLatencyMs", System.currentTimeMillis() - sendStart,
+                "archivedToSent", archivedToSent,
+                "result", RESULT_OK);
         return "发送成功";
     }
 
@@ -417,7 +462,7 @@ public class OaMailServiceImpl extends ServiceImpl<OaMailAccountMapper, OaMailAc
         return dto;
     }
 
-    private void archiveToSentQuietly(OaMailAccount account, MimeMessage message) {
+    private boolean archiveToSentQuietly(OaMailAccount account, MimeMessage message) {
         Store store = null;
         try {
             store = connector.openImapStore(toImapConfig(account));
@@ -425,9 +470,10 @@ public class OaMailServiceImpl extends ServiceImpl<OaMailAccountMapper, OaMailAc
                     MailCanonicalFolder.SENT);
             if (sentRemote == null) {
                 log.warn("[mail] 账号 {} 未映射「已发送」文件夹，发信不入归档（下次同步不影响）", account.getId());
-                return;
+                return false;
             }
             operator.appendToFolder(store, sentRemote, message, true);
+            return true;
         } catch (Exception e) {
             // QQ 等服务商 SMTP 自动落 Sent，APPEND 会返回 "already saved to Sent"——属预期行为，降级为 INFO
             if (e.getMessage() != null && e.getMessage().contains("already saved to Sent")) {
@@ -435,6 +481,7 @@ public class OaMailServiceImpl extends ServiceImpl<OaMailAccountMapper, OaMailAc
             } else {
                 log.warn("[mail] 发信归档已发送失败 accountId={}: {}", account.getId(), e.getMessage());
             }
+            return false;
         } finally {
             closeStoreQuietly(store, account.getId());
         }

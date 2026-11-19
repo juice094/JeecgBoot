@@ -84,18 +84,26 @@ public class MailMessageOperator {
         }
     }
 
+    /** 删除模式：移入回收站（Trash 有映射且源不是 Trash） */
+    public static final String DELETE_MODE_TRASH = "trash";
+
+    /** 删除模式：源文件夹内永久删除（expunge） */
+    public static final String DELETE_MODE_PERMANENT = "permanent";
+
     /**
      * 删除：目标 Trash 有映射且源不是 Trash → copy 到 Trash 后源 expunge；
      * 否则源内直接 expunge（永久删除）。
+     *
+     * @return 删除模式 {@link #DELETE_MODE_TRASH}/{@link #DELETE_MODE_PERMANENT}（mail.deleted 事件字段）
      */
-    public void delete(Store store, String accountId, OaMailFolderStateMapper folderStateMapper,
+    public String delete(Store store, String accountId, OaMailFolderStateMapper folderStateMapper,
             String sourceRemote, long uid) throws MessagingException {
         MailCanonicalFolder sourceCanonical = canonicalOf(folderStateMapper, accountId, sourceRemote);
         String trashRemote = resolveRemoteFolder(folderStateMapper, accountId, MailCanonicalFolder.TRASH);
         if (trashRemote != null && !trashRemote.equals(sourceRemote)
                 && sourceCanonical != MailCanonicalFolder.TRASH) {
             moveToTrash(store, sourceRemote, trashRemote, uid);
-            return;
+            return DELETE_MODE_TRASH;
         }
         Folder folder = openFolder(store, sourceRemote);
         try {
@@ -108,6 +116,7 @@ public class MailMessageOperator {
             // expunge 后 folder 仍按 open 状态使用，close(false)：\Deleted 已物理清除
             folder.close(false);
         }
+        return DELETE_MODE_PERMANENT;
     }
 
     /**

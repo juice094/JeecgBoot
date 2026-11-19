@@ -9,6 +9,7 @@ import java.util.stream.Collectors;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.shiro.SecurityUtils;
 import org.jeecg.common.exception.JeecgBootException;
+import org.jeecg.common.log.EventLoggers;
 import org.jeecg.common.system.vo.LoginUser;
 import org.jeecg.modules.team.entity.TeamApproval;
 import org.jeecg.modules.team.entity.TeamApprovalStep;
@@ -45,6 +46,15 @@ public class TeamApprovalServiceImpl extends ServiceImpl<TeamApprovalMapper, Tea
     private static final String ACTION_REJECTED = "rejected";
     private static final String ACTION_RETURNED = "returned";
 
+    /** 事件名（规划稿 §1 埋点清单） */
+    private static final String EVENT_APPROVAL_SUBMITTED = "approval.submitted";
+    private static final String EVENT_APPROVAL_TRANSITION = "approval.transition";
+    private static final String EVENT_VALIDATION_FAILED = "approval.validation_failed";
+
+    /** 事件结果口径 */
+    private static final String RESULT_OK = "ok";
+    private static final String RESULT_CONFLICT = "conflict";
+
     @Autowired
     private TeamApprovalStepMapper stepMapper;
 
@@ -73,6 +83,12 @@ public class TeamApprovalServiceImpl extends ServiceImpl<TeamApprovalMapper, Tea
         auditLogger.log(TeamAuditBizType.APPROVAL, approval.getId(), approval.getCode(),
                 TeamAuditAction.SUBMIT, null, TeamApprovalStatus.PENDING.getCode(),
                 "步骤数=" + effectiveSteps.size() + ", 类别=" + approval.getCategory());
+        EventLoggers.info(EventLoggers.TEAM_EVENT, EVENT_APPROVAL_SUBMITTED,
+                "code", approval.getCode(),
+                "category", approval.getCategory(),
+                "amount", approval.getAmount(),
+                "applicant", StringUtils.defaultIfBlank(approval.getApplicantName(), approval.getApplicantId()),
+                "stepCount", effectiveSteps.size());
         return approval;
     }
 
@@ -90,6 +106,8 @@ public class TeamApprovalServiceImpl extends ServiceImpl<TeamApprovalMapper, Tea
                 .set(TeamApprovalStep::getComment, comment)
                 .set(TeamApprovalStep::getActedAt, now));
         if (stepUpdated == 0) {
+            logTransition(approval, stepSnapshot(step.getStepNo()), stepSnapshot(step.getStepNo()),
+                    TeamAuditAction.APPROVE.getCode(), RESULT_CONFLICT);
             throw new JeecgBootException("并发冲突：当前步骤已被他人操作: code=" + approval.getCode());
         }
 
@@ -111,6 +129,9 @@ public class TeamApprovalServiceImpl extends ServiceImpl<TeamApprovalMapper, Tea
             approvalUpdate.set(TeamApproval::getUpdateBy, loginUser.getUsername());
         }
         if (baseMapper.update(null, approvalUpdate) == 0) {
+            logTransition(approval, stepSnapshot(step.getStepNo()),
+                    isLast ? TeamApprovalStatus.APPROVED.getCode() : stepSnapshot(newStep),
+                    TeamAuditAction.APPROVE.getCode(), RESULT_CONFLICT);
             throw new JeecgBootException("并发冲突：审批单状态已变化: code=" + approval.getCode());
         }
 
@@ -118,6 +139,9 @@ public class TeamApprovalServiceImpl extends ServiceImpl<TeamApprovalMapper, Tea
                 TeamAuditAction.APPROVE, stepSnapshot,
                 isLast ? TeamApprovalStatus.APPROVED.getCode() : stepSnapshot(newStep),
                 comment);
+        logTransition(approval, stepSnapshot,
+                isLast ? TeamApprovalStatus.APPROVED.getCode() : stepSnapshot(newStep),
+                TeamAuditAction.APPROVE.getCode(), RESULT_OK);
     }
 
     @Override
@@ -134,6 +158,8 @@ public class TeamApprovalServiceImpl extends ServiceImpl<TeamApprovalMapper, Tea
                 .set(TeamApprovalStep::getComment, comment)
                 .set(TeamApprovalStep::getActedAt, now));
         if (stepUpdated == 0) {
+            logTransition(approval, stepSnapshot(step.getStepNo()), stepSnapshot(step.getStepNo()),
+                    TeamAuditAction.REJECT.getCode(), RESULT_CONFLICT);
             throw new JeecgBootException("并发冲突：当前步骤已被他人操作: code=" + approval.getCode());
         }
 
@@ -147,12 +173,16 @@ public class TeamApprovalServiceImpl extends ServiceImpl<TeamApprovalMapper, Tea
             approvalUpdate.set(TeamApproval::getUpdateBy, loginUser.getUsername());
         }
         if (baseMapper.update(null, approvalUpdate) == 0) {
+            logTransition(approval, stepSnapshot(step.getStepNo()), TeamApprovalStatus.REJECTED.getCode(),
+                    TeamAuditAction.REJECT.getCode(), RESULT_CONFLICT);
             throw new JeecgBootException("并发冲突：审批单状态已变化: code=" + approval.getCode());
         }
 
         auditLogger.log(TeamAuditBizType.APPROVAL, approval.getId(), approval.getCode(),
                 TeamAuditAction.REJECT, stepSnapshot(step.getStepNo()),
                 TeamApprovalStatus.REJECTED.getCode(), comment);
+        logTransition(approval, stepSnapshot(step.getStepNo()), TeamApprovalStatus.REJECTED.getCode(),
+                TeamAuditAction.REJECT.getCode(), RESULT_OK);
     }
 
     @Override
@@ -177,12 +207,16 @@ public class TeamApprovalServiceImpl extends ServiceImpl<TeamApprovalMapper, Tea
                 .set(TeamApproval::getUpdateTime, new Date())
                 .set(TeamApproval::getUpdateBy, loginUser.getUsername()));
         if (updated == 0) {
+            logTransition(approval, TeamApprovalStatus.PENDING.getCode(), TeamApprovalStatus.CANCELED.getCode(),
+                    TeamAuditAction.CANCEL.getCode(), RESULT_CONFLICT);
             throw new JeecgBootException("并发冲突：审批单状态已变化: code=" + approval.getCode());
         }
 
         auditLogger.log(TeamAuditBizType.APPROVAL, approval.getId(), approval.getCode(),
                 TeamAuditAction.CANCEL, TeamApprovalStatus.PENDING.getCode(),
                 TeamApprovalStatus.CANCELED.getCode(), null);
+        logTransition(approval, TeamApprovalStatus.PENDING.getCode(), TeamApprovalStatus.CANCELED.getCode(),
+                TeamAuditAction.CANCEL.getCode(), RESULT_OK);
     }
 
     @Override
@@ -199,6 +233,8 @@ public class TeamApprovalServiceImpl extends ServiceImpl<TeamApprovalMapper, Tea
                 .set(TeamApprovalStep::getComment, comment)
                 .set(TeamApprovalStep::getActedAt, now));
         if (stepUpdated == 0) {
+            logTransition(approval, stepSnapshot(step.getStepNo()), stepSnapshot(step.getStepNo()),
+                    TeamAuditAction.RETURN.getCode(), RESULT_CONFLICT);
             throw new JeecgBootException("并发冲突：当前步骤已被他人操作: code=" + approval.getCode());
         }
 
@@ -212,12 +248,16 @@ public class TeamApprovalServiceImpl extends ServiceImpl<TeamApprovalMapper, Tea
             approvalUpdate.set(TeamApproval::getUpdateBy, loginUser.getUsername());
         }
         if (baseMapper.update(null, approvalUpdate) == 0) {
+            logTransition(approval, stepSnapshot(step.getStepNo()), TeamApprovalStatus.RETURNED.getCode(),
+                    TeamAuditAction.RETURN.getCode(), RESULT_CONFLICT);
             throw new JeecgBootException("并发冲突：审批单状态已变化: code=" + approval.getCode());
         }
 
         auditLogger.log(TeamAuditBizType.APPROVAL, approval.getId(), approval.getCode(),
                 TeamAuditAction.RETURN, stepSnapshot(step.getStepNo()),
                 TeamApprovalStatus.RETURNED.getCode(), comment);
+        logTransition(approval, stepSnapshot(step.getStepNo()), TeamApprovalStatus.RETURNED.getCode(),
+                TeamAuditAction.RETURN.getCode(), RESULT_OK);
     }
 
     @Override
@@ -247,12 +287,16 @@ public class TeamApprovalServiceImpl extends ServiceImpl<TeamApprovalMapper, Tea
                 .set(TeamApproval::getUpdateTime, new Date())
                 .set(TeamApproval::getUpdateBy, loginUser.getUsername()));
         if (updated == 0) {
+            logTransition(approval, TeamApprovalStatus.RETURNED.getCode(), TeamApprovalStatus.PENDING.getCode(),
+                    TeamAuditAction.RESUBMIT.getCode(), RESULT_CONFLICT);
             throw new JeecgBootException("并发冲突：审批单状态已变化: code=" + approval.getCode());
         }
 
         auditLogger.log(TeamAuditBizType.APPROVAL, approval.getId(), approval.getCode(),
                 TeamAuditAction.RESUBMIT, TeamApprovalStatus.RETURNED.getCode(),
                 TeamApprovalStatus.PENDING.getCode(), "新步骤数=" + effectiveSteps.size());
+        logTransition(approval, TeamApprovalStatus.RETURNED.getCode(), TeamApprovalStatus.PENDING.getCode(),
+                TeamAuditAction.RESUBMIT.getCode(), RESULT_OK);
 
         approval.setStatus(TeamApprovalStatus.PENDING.getCode());
         approval.setCurrentStep(1);
@@ -359,7 +403,16 @@ public class TeamApprovalServiceImpl extends ServiceImpl<TeamApprovalMapper, Tea
     private void applyFormValidation(TeamApproval approval) {
         TeamApprovalTemplate template = templateService.findEnabledByCategory(approval.getCategory());
         String schema = template == null ? null : template.getFieldSchema();
-        ApprovalFormValidator.Result result = ApprovalFormValidator.validate(schema, approval.getFormData());
+        ApprovalFormValidator.Result result;
+        try {
+            result = ApprovalFormValidator.validate(schema, approval.getFormData());
+        } catch (JeecgBootException e) {
+            // 负路径埋点（规划稿 §1 approval.validation_failed）：模板字段校验拒绝，观测前端绕过尝试
+            EventLoggers.info(EventLoggers.TEAM_EVENT, EVENT_VALIDATION_FAILED,
+                    "category", approval.getCategory(),
+                    "reason", e.getMessage());
+            throw e;
+        }
         approval.setFormData(result.toJson());
         if (result.getAmount() != null) {
             approval.setAmount(result.getAmount());
@@ -484,6 +537,21 @@ public class TeamApprovalServiceImpl extends ServiceImpl<TeamApprovalMapper, Tea
     /** 审计留痕的步骤快照格式（from/to 值统一口径） */
     private String stepSnapshot(int stepNo) {
         return "step:" + stepNo;
+    }
+
+    /**
+     * 事件日志（技术/运营面）：审批状态迁移，含并发冲突拒绝（result=conflict）。
+     * 审计入库仍走 TeamAuditLogger，双轨不合并（规划稿 §2.3）。
+     */
+    private void logTransition(TeamApproval approval, String from, String to, String action, String result) {
+        LoginUser loginUser = (LoginUser) SecurityUtils.getSubject().getPrincipal();
+        EventLoggers.info(EventLoggers.TEAM_EVENT, EVENT_APPROVAL_TRANSITION,
+                "code", approval.getCode(),
+                "from", from,
+                "to", to,
+                "action", action,
+                "result", result,
+                "operator", loginUser == null ? null : loginUser.getUsername());
     }
 
     /** ponytail: 试点级单号生成，并发问题（P1）另行处理 */
