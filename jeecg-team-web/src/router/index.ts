@@ -80,6 +80,12 @@ export const layoutChildren: RouteRecordRaw[] = [
     meta: { title: 'Redis 监控', group: '管理', icon: 'redis' },
   },
   {
+    path: 'admin/monitor/datalog',
+    name: 'MonitorDataLog',
+    component: () => import('@/modules/business/views/monitor/MonitorDataLog.vue'),
+    meta: { title: '数据日志', group: '管理', icon: 'logs' },
+  },
+  {
     path: 'biz/marketing',
     name: 'Marketing',
     component: () => import('@/modules/business/views/Marketing.vue'),
