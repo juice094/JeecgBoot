@@ -7,7 +7,8 @@
 JeecgBoot 3.9.6 —— 免费开源（Apache-2.0）的 AI 低代码开发平台的后端工程（`jeecg-boot-parent`），采用 Maven 多模块结构，默认单体部署、可选 Spring Cloud 微服务。
 
 - 技术底座：Java 17（兼容 21/24/25）+ Spring Boot 4.1.0 + MyBatis-Plus 3.5.16 + Apache Shiro 3.0.0 + JWT 4.5.0，全程使用 `jakarta` 命名空间（**不是** `javax`，新增代码禁止引入 `javax.*`）。
-- 前端是独立的姊妹工程 `jeecgboot-vue3/`（Vue 3 + TS + Vite + Ant Design Vue），不在本目录内；前端细节见其自身 `AGENTS.md`。
+- 前端（现行默认）是仓库根下的 `jeecg-team-web/`（Vue 3 + TS + Vite，独立于 jeecgboot-vue3 的新工程），不在本目录内。
+- 前端（旧，待迁移）`jeecgboot-vue3/`（Vue 3 + TS + Vite + Ant Design Vue）已标记为待迁移代码资产，不再承接新功能，仅作迁移参考；其细节见其自身 `AGENTS.md`。
 - 默认账号 `admin / 123456`；本地启动后接口基址 `http://localhost:8080/jeecg-boot`，接口文档（Knife4j）`http://localhost:8080/jeecg-boot/doc.html`。
 
 ## 目录结构（本仓库实际内容）

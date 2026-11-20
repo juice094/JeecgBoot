@@ -7,10 +7,11 @@
 JeecgBoot 3.9.6 —— 免费开源（Apache-2.0）的 AI 低代码开发平台，采用前后端分离架构，默认单体部署、可选 Spring Cloud 微服务。
 
 - **后端** `jeecg-boot/`：Java 17（兼容 21/24/25）+ Spring Boot 4.1.0 + MyBatis-Plus 3.5.16 + Apache Shiro 3.0.0 + JWT，全程使用 `jakarta` 命名空间（非 `javax`）。
-- **前端** `jeecgboot-vue3/`：Vue 3 + TypeScript + Vite 8 + Ant Design Vue 4 + Pinia，源自 Vben Admin 深度定制。
-- 默认账号 `admin / 123456`；后端默认 `http://localhost:8080/jeecg-boot`，接口文档（Knife4j）`http://localhost:8080/jeecg-boot/doc.html`，前端开发服务器端口 3100。
+- **前端（现行默认）** `jeecg-team-web/`：团队协作效率工作台，Vue 3 + TypeScript + Vite 8，独立于 jeecgboot-vue3 的新前端工程，联调基线为本机后端 8081（详见其 `README.md` 与 `docs/`）。
+- **前端（旧，待迁移）** `jeecgboot-vue3/`：Vue 3 + TypeScript + Vite 8 + Ant Design Vue 4 + Pinia，源自 Vben Admin 深度定制。已标记为**待迁移代码资产**：不再承接新功能，仅作迁移参考与缺陷对照，新需求一律在 `jeecg-team-web/` 实现。
+- 默认账号 `admin / 123456`；后端默认 `http://localhost:8080/jeecg-boot`，接口文档（Knife4j）`http://localhost:8080/jeecg-boot/doc.html`。
 
-更详细的后端说明见 `jeecg-boot/CLAUDE.md`；前端目录另有独立的 `jeecgboot-vue3/AGENTS.md`（其内容仅适用于该子目录）。
+更详细的后端说明见 `jeecg-boot/CLAUDE.md`；旧前端 `jeecgboot-vue3/AGENTS.md` 的内容仅适用于该子目录，且仅具迁移参考价值。
 
 ## 仓库结构
 
@@ -26,7 +27,8 @@ JeecgBoot/
 │   ├── jeecg-boot-platform/     # 低代码平台模块：BPM-flowable、bigscreen、desform、drag、lowapp、online 代码生成器等
 │   ├── jeecg-server-cloud/      # 微服务组件（-P SpringCloud 激活）：Gateway 9999、Nacos、Sentinel、XXL-Job 等
 │   └── db/                      # MySQL 初始化脚本（jeecgboot-mysql-5.7.sql）
-├── jeecgboot-vue3/              # 前端工程
+├── jeecg-team-web/              # 现行默认前端（新工程，模块分工见其 README.md）
+├── jeecgboot-vue3/              # 旧前端（待迁移代码资产，仅作迁移参考）
 ├── docker-compose.yml           # 单体模式一键启动（MySQL 13306、Redis、PG+pgvector、MongoDB、应用 8080）
 ├── docker-compose-cloud.yml     # 微服务模式一键启动
 ├── start-docker-compose.{sh,bat} / start-docker-compose-cloud.{sh,bat}
@@ -46,10 +48,21 @@ mvn clean package -P SpringCloud                   # 含微服务模块构建
 mvn test -DskipTests=false -pl <module> -Dtest=<TestClassName>     # 跑单个测试类
 ```
 
-### 前端（在 `jeecgboot-vue3/` 下执行，Node 20.19+/22.12+，pnpm 10+）
+### 前端
+
+现行默认前端为 `jeecg-team-web/`（在 `jeecg-team-web/` 下执行，Node ≥ 20.19，pnpm 10+）：
 
 ```bash
 pnpm install
+pnpm dev            # 开发服务器，端口 3200，/jeecg-boot 已代理到本机后端 8081（联调基线）
+```
+
+模块边界（三人分工）见 `jeecg-team-web/README.md`；改动只落各自模块目录。
+
+旧前端 `jeecgboot-vue3/` 为待迁移代码资产，不再承接新功能；其构建命令留存备查：
+
+```bash
+cd jeecgboot-vue3 && pnpm install
 pnpm dev            # 开发服务器，端口 3100，通过 VITE_PROXY 代理到后端
 pnpm build          # 生产构建到 dist/（附带 postBuild/copyChat 脚本）
 pnpm batch:prettier # 对 src/ 全量 Prettier 格式化，仅在需要大范围格式化时执行
@@ -94,7 +107,9 @@ pnpm batch:prettier # 对 src/ 全量 Prettier 格式化，仅在需要大范围
 - 配置集中在 `jeecg-module-system/jeecg-system-start/src/main/resources/`：`application.yml`（Profile 选择，由 Maven 的 dev/test/prod/docker 决定）、`application-dev.yml`（8080，开发模式启用 `spring.main.lazy-initialization=true`，Flyway 自动装配被显式排除、单独管理）。`jeecg.*` 命名空间控制平台功能（上传方式、防火墙、AI、MinIO、Shiro 排除路径等）。
 - 开发环境依赖：MySQL、Redis 必需；MongoDB、RabbitMQ、pgvector 可选（AI 知识库需要 pgvector，AI 聊天需在 `application-dev.yml` 配置 `jeecg.ai-chat` 的 apiKey）。
 
-### 前端
+### 前端（旧 jeecgboot-vue3，迁移参考）
+
+以下约定描述的是旧前端 `jeecgboot-vue3/`，供向 `jeecg-team-web/` 迁移时对照参考，不代表现行前端的结构：
 
 - 路径别名：`/@/` → `src/`，`/#/` → `types/`；代码中通篇用带斜杠的 `/@/`。
 - 主要目录：`src/api/`（按域组织的请求函数）、`src/components/`（通用组件及 `jeecg/` 下平台专属组件）、`src/hooks/`、`src/layouts/`、`src/router/`（后端权限驱动动态路由）、`src/store/`（Pinia）、`src/views/`、`src/locales/`（zh_CN、en）。
@@ -108,7 +123,7 @@ pnpm batch:prettier # 对 src/ 全量 Prettier 格式化，仅在需要大范围
 ## 测试策略
 
 - 后端：JUnit 5，测试默认跳过（`<skipTests>true</skipTests>`），用 `mvn test -DskipTests=false -pl <module> -Dtest=<类名>` 显式运行。没有强制的测试覆盖率门槛，核心逻辑改动建议补对应测试。
-- 前端：Jest 29 + ts-jest + `@vue/test-utils` 已配置，但无 `test` 脚本；如添加前端测试需自行补齐脚本。
+- 前端（旧 jeecgboot-vue3，仅迁移参考）：Jest 29 + ts-jest + `@vue/test-utils` 已配置，但无 `test` 脚本；如添加前端测试需自行补齐脚本。
 - `check_jeecgenv.py`：Windows 下的环境自检脚本（检查 JDK 17+、Maven、Node 20+、pnpm 9+ 并提示 MySQL/Redis/AI/pgvector 配置位置）。
 
 ## 安全注意事项
@@ -125,3 +140,9 @@ pnpm batch:prettier # 对 src/ 全量 Prettier 格式化，仅在需要大范围
 - 执行删除类操作遵循迁移而非物理删除（`mv` 到隔离目录）。
 - 大范围搜索/读取时避开 `node_modules/`、`dist/`、`target/`、`.git/`、`docker/data/` 等目录（各子目录 `.claudeignore` 可参照）。
 - Online 低代码模块（`jeecg-boot-platform/.../jeecg-boot-module-online`）为**元数据驱动**：表单/报表配置存于数据库表（`onl_cgform_*`），代码仓库中读不到具体配置；需要时向用户索要 JSON 导出或截图。配置 Schema 详见 `jeecg-boot/online-form-schema.md` 与前端 `src/views/super/online/cgform/online-form-schema.md`。
+- 在线用户列表的口径与 token 堆积治理（is-concurrent=false、按 token 列出不按人去重）见 `projects/agent-collab-pilot/reports/online-user-dup-fix-20261120.md`；对 Redis 批量删除注意 redis-cli 的 CRLF 坑（该报告 §3 有可靠命令）。
+- 忘记密码功能（team-web /forgot-password：签名实现、dev 短信 mock、联调要点与回滚）见 `projects/agent-collab-pilot/reports/forgot-password-20261120.md`。
+- 权限体系（四层角色模板：标配/业务成员/业务主管/系统管理员；前端 getPermCode 权限闭环与侧栏过滤；SQL 在 `projects/agent-collab-pilot/sql/permission-system-20261120.sql`）见 `projects/agent-collab-pilot/reports/permission-system-20261120.md`。
+- 组织初始化（模型材料=控股集团 A05；成员安置与演示组织清退；新建组织的模板复用口径；SQL 在 `projects/agent-collab-pilot/sql/org-init-20261120.sql`）见 `projects/agent-collab-pilot/reports/org-init-20261120.md`。
+- 监控域确权闭环（定时任务操作化 + 数据变更日志页；四层 Controller 缺口盘点与未闭环项触发条件）见 `projects/agent-collab-pilot/reports/monitor-governance-20261120.md`。
+- 2026-11-20 全阶段收口（六项施工汇总、两项工具修复、0.2.0 打包、验证状态与遗留清单）见 `projects/agent-collab-pilot/reports/20261120-phase-closeout.md`。

@@ -29,9 +29,16 @@ esac
 echo "[team-backend] port=$PORT profile=$PROFILE"
 echo "[team-backend] 健康检查：http://127.0.0.1:$PORT/jeecg-boot/doc.html"
 
-# 首次必须带 -am 构建 jeecg-module-team 等依赖；之后可 SKIP_AM=1 加速
+# 首次必须带 -am 安装 jeecg-module-team 等依赖；之后可 SKIP_AM=1 加速。
+# 注意：spring-boot:run 不能带 -am（会把 run 目标也执行到 parent/依赖 jar 上，
+# 报 "Unable to find a suitable main class"）——依赖必须先经 install 阶段进本地仓库。
+if [ "${SKIP_AM:-0}" != "1" ]; then
+  echo "[team-backend] 安装依赖模块（-am -DskipTests）..."
+  mvn install $AM_FLAG -DskipTests
+fi
+
 exec mvn spring-boot:run \
-  -pl jeecg-module-system/jeecg-system-start $AM_FLAG \
+  -pl jeecg-module-system/jeecg-system-start \
   -DskipTests \
   -Dspring-boot.run.profiles="$PROFILE" \
   -Dspring-boot.run.arguments="--server.port=$PORT"
