@@ -41,6 +41,8 @@ export interface OnlineUserRow {
   realname?: string;
   phone?: string;
   sex?: number; // 1=男 2=女
+  /** 会话标识（强退按此字段），注意：id 是用户主键，同用户恒相同，不能当会话ID展示 */
+  token?: string;
 }
 
 export function listOnlineUsers(params: { pageNo?: number; pageSize?: number; username?: string }) {
