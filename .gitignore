@@ -15,6 +15,7 @@ os_del_doc.cmd
 derby.log
 .cursor
 .history
+.claude*.log
 .claude
 
 ## 归档（已迁出的前端工程等，不参与当前构建）

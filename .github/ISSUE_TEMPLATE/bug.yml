@@ -1,0 +1,27 @@
+name: 缺陷
+description: 报告一个可复现的问题
+title: "[bug] 简述："
+labels: ["kind/bug"]
+body:
+  - type: textarea
+    id: repro
+    attributes:
+      label: 复现步骤
+      description: 环境（本机/VM、分支、端口）+ 操作 + 现象
+    validations:
+      required: true
+  - type: dropdown
+    id: module
+    attributes:
+      label: 所属面
+      options:
+        - 前端 jeecg-team-web
+        - 后端 jeecg-boot
+        - 云 VM / 部署
+        - 仓库 / 协作流程
+    validations:
+      required: true
+  - type: textarea
+    id: expect
+    attributes:
+      label: 期望行为

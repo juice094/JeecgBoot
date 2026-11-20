@@ -1,0 +1,31 @@
+name: 功能开发
+description: 模块功能开发任务（默认从 issue 合同开始）
+title: "[模块] 简述："
+labels: ["kind/feature"]
+body:
+  - type: dropdown
+    id: module
+    attributes:
+      label: 所属模块
+      options:
+        - message（用户与消息，qingyanjunzi）
+        - business（表单与审批，juice094）
+        - admin（组织租户，Ym3699）
+        - infra/公共层（Kimi Code 收口）
+    validations:
+      required: true
+  - type: input
+    id: contract
+    attributes:
+      label: 合同依据
+      description: 关联 issue / 设计文档（docs/编号）
+      placeholder: "如：#2 / docs/13 §二"
+    validations:
+      required: true
+  - type: textarea
+    id: scope
+    attributes:
+      label: 范围与验收
+      description: 做什么、不做什么、验收三问（文档齐/VM可复现/成员会用）
+    validations:
+      required: true
