@@ -319,6 +319,8 @@ jeecg:
     excludeUrls: /test/jeecgDemo/demo3,/test/jeecgDemo/redisDemo/**,/bigscreen/category/**,/bigscreen/visual/**,/bigscreen/map/**,/jmreport/bigscreen2/**
   # 短信发送方式 aliyun阿里云短信 tencent腾讯云短信
   smsSendType: aliyun
+  # 短信 mock（dev only：不发真实短信，验证码打印到后端日志，配合忘记密码流程本机联调；生产严禁开启）
+  smsMock: true
   #阿里云oss存储和大鱼短信秘钥配置
   oss:
     accessKey: ??

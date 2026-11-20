@@ -1,14 +1,16 @@
 <script setup lang="ts">
 import { reactive, ref } from 'vue';
-import { useRouter } from 'vue-router';
+import { useRoute, useRouter } from 'vue-router';
 import { useAuthStore } from '@/stores/auth';
 
 const router = useRouter();
+const route = useRoute();
 const auth = useAuthStore();
 
 const form = reactive({ username: 'admin', password: '123456' });
 const loading = ref(false);
 const errorMsg = ref('');
+const resetTip = ref(route.query.reset === '1' ? '密码已重置，请使用新密码登录' : '');
 
 async function onSubmit() {
   if (!form.username || !form.password) {
@@ -43,10 +45,14 @@ async function onSubmit() {
           <input v-model="form.password" type="password" autocomplete="current-password" placeholder="请输入密码" />
         </label>
         <p v-if="errorMsg" class="login-form__error">{{ errorMsg }}</p>
+        <p v-if="resetTip" class="login-form__info">{{ resetTip }}</p>
         <button class="login-form__submit" type="submit" :disabled="loading">
           {{ loading ? '登录中…' : '登 录' }}
         </button>
       </form>
+      <p class="login-card__foot">
+        <button type="button" class="link-btn" @click="router.push({ name: 'ForgotPassword' })">忘记密码？</button>
+      </p>
       <p class="login-card__foot">账号体系：JeecgBoot RBAC · 默认 admin / 123456</p>
     </div>
   </div>
@@ -116,6 +122,21 @@ async function onSubmit() {
   color: var(--danger);
   font-size: 13px;
   margin-bottom: 12px;
+}
+
+.login-form__info {
+  color: var(--text-muted);
+  font-size: 13px;
+  margin-bottom: 12px;
+}
+
+.link-btn {
+  background: none;
+  border: none;
+  color: var(--primary);
+  font-size: 13px;
+  cursor: pointer;
+  padding: 0;
 }
 
 .login-form__submit {

@@ -1,6 +1,5 @@
 package org.jeecg.config;
 
-import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.models.Components;
 import io.swagger.v3.oas.models.OpenAPI;
 import io.swagger.v3.oas.models.info.Contact;
@@ -79,7 +78,10 @@ public class Swagger3Config implements WebMvcConfigurer {
 
     @Bean
     public GlobalOpenApiMethodFilter globalOpenApiMethodFilter() {
-        return method -> method.isAnnotationPresent(Operation.class);
+        // 2026-11-20 由"仅 @Operation 注解的方法"放宽为全部方法：
+        // 原过滤导致 /sys/user、/sys/sms、/sys/dataLog 等大量在用接口不出现在 Knife4j 文档中，
+        // 团队以 doc.html 为接口合同入口，覆盖率优先；参数示例由 SwaggerParamExampleConfig 统一注入。
+        return method -> true;
     }
 
     @Bean

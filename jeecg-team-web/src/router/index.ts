@@ -156,6 +156,7 @@ const router = createRouter({
   history: createWebHistory(),
   routes: [
     { path: '/login', name: 'Login', component: () => import('@/views/Login.vue') },
+    { path: '/forgot-password', name: 'ForgotPassword', component: () => import('@/views/ForgotPassword.vue') },
     {
       path: '/',
       component: () => import('@/layout/AppLayout.vue'),
@@ -166,7 +167,8 @@ const router = createRouter({
 
 router.beforeEach((to) => {
   const auth = useAuthStore();
-  if (!auth.isLogin && to.name !== 'Login') {
+  // 匿名页面白名单：登录与忘记密码
+  if (!auth.isLogin && to.name !== 'Login' && to.name !== 'ForgotPassword') {
     return { name: 'Login', query: { redirect: to.fullPath } };
   }
   if (auth.isLogin && to.name === 'Login') {

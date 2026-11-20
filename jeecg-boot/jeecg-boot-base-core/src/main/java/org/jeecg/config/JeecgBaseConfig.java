@@ -98,6 +98,14 @@ public class JeecgBaseConfig {
     @Getter
     @Setter
     private String smsSendType = "aliyun";
+
+    /**
+     * 短信发送 mock 开关：true 时不走真实短信通道，验证码仅打印到后端日志。
+     * ponytail: 仅供开发环境使用，生产环境必须为 false（默认值即 false）
+     */
+    @Getter
+    @Setter
+    private Boolean smsMock = false;
     
     /**
      * 腾讯配置
