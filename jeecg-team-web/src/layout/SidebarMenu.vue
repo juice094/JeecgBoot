@@ -24,6 +24,7 @@ import {
 } from '@phosphor-icons/vue';
 import {useWorkbenchStore} from '@/stores/workbench';
 import {useBadgeStore} from '@/stores/badges';
+import {hasPermission} from '@/utils/permission';
 
 const route = useRoute();
 const router = useRouter();
@@ -61,6 +62,7 @@ const MENU_ICONS: Record<string, Component> = {
 };
 
 // 侧栏从路由派生，禁止在这里硬编码菜单项（docs/13 §二.5，issue #11）
+// meta.perm 过滤：无权限码的菜单项不渲染；权限码未加载时 hasPermission 兜底放行（渐进增强）
 const menus = computed<MenuGroup[]>(() => {
   const children = router.options.routes.find((r) => r.path === '/')?.children ?? [];
   const groups = new Map<string, MenuChild[]>();
@@ -70,8 +72,10 @@ const menus = computed<MenuGroup[]>(() => {
       owner?: string;
       group?: string;
       icon?: string;
+      perm?: string;
     } | undefined;
     if (!meta?.group || !child.path) continue;
+    if (meta.perm && !hasPermission(meta.perm)) continue;
     if (!groups.has(meta.group)) groups.set(meta.group, []);
     groups.get(meta.group)!.push({
       title: meta.title ?? child.path,
@@ -80,7 +84,9 @@ const menus = computed<MenuGroup[]>(() => {
       icon: meta.icon ?? '',
     });
   }
-  return [...groups.entries()].map(([title, items]) => ({title, children: items}));
+  return [...groups.entries()]
+    .map(([title, items]) => ({title, children: items}))
+    .filter((g) => g.children.length > 0);
 });
 
 // 角标真实计数来自 badgeStore（原 meta.badge 硬编码占位已移除）；按路由 path 关联

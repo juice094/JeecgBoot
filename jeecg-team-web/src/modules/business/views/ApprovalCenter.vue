@@ -4,11 +4,17 @@
 // 状态六态：draft/pending/returned/approved/rejected/canceled
 import { computed, onMounted, reactive, ref, watch } from 'vue';
 import { useAuthStore } from '@/stores/auth';
+import { usePermission } from '@/utils/permission';
 import {
   listApprovals, listApprovalTodos, approveApproval, rejectApproval,
   returnApproval, cancelApproval, resubmitApproval, fetchApprovalSteps,
   type Approval, type ApprovalStep,
 } from '@/api/team';
+
+// 审批动作权限（权限码已剥离到"业务主管"角色；未加载时 hasPermission 兜底放行）
+const { hasPermission } = usePermission();
+const canApproveAction = hasPermission('team:approval:approve');
+const canRejectAction = hasPermission('team:approval:reject');
 
 type Tab = 'todo' | 'done' | 'mine';
 const activeTab = ref<Tab>('todo');
@@ -181,9 +187,9 @@ async function toggleSteps(row: Approval) {
             <td><span class="tag" :class="statusTag(row.status).cls">{{ statusTag(row.status).text }}</span></td>
             <td>
               <template v-if="canApprove(row)">
-                <button class="btn btn-primary btn--sm" :disabled="busyId === row.id" @click="approve(row)">通过</button>
-                <button class="btn btn--sm btn--danger" :disabled="busyId === row.id" @click="reject(row)">拒绝</button>
-                <button class="btn btn--sm" :disabled="busyId === row.id" @click="returnToApplicant(row)">退回</button>
+                <button v-if="canApproveAction" class="btn btn-primary btn--sm" :disabled="busyId === row.id" @click="approve(row)">通过</button>
+                <button v-if="canRejectAction" class="btn btn--sm btn--danger" :disabled="busyId === row.id" @click="reject(row)">拒绝</button>
+                <button v-if="canRejectAction" class="btn btn--sm" :disabled="busyId === row.id" @click="returnToApplicant(row)">退回</button>
               </template>
               <template v-else-if="canCancel(row)">
                 <button class="btn btn--sm btn--danger" :disabled="busyId === row.id" @click="cancel(row)">撤回</button>

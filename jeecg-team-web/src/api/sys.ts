@@ -294,3 +294,8 @@ export function addUserRole(params: {
 export function deleteUserRole(params: { roleId: string; userId: string }): Promise<any> {
   return http.delete('/sys/user/deleteUserRole', { params });
 }
+
+/** 当前用户按钮权限码 GET /sys/permission/getPermCode（返回 result.codeList，menuType=2 且 status=1） */
+export function getPermCode(): Promise<string[]> {
+  return http.get<any, { result?: { codeList?: string[] } }>('/sys/permission/getPermCode').then((d) => d.result?.codeList ?? []);
+}

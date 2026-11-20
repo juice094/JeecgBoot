@@ -29,6 +29,7 @@ import {
   type SysUser,
   type SysRole,
 } from '@/api/sys';
+import { DEFAULT_ROLE_ID } from '@/constants/app';
 import DeptNode from '../components/DeptNode.vue';
 import DataTable, { type DataTableColumn } from '@/components/DataTable.vue';
 import FormModal, { type FormField } from '@/components/FormModal.vue';
@@ -258,7 +259,17 @@ async function submitUser(values: Record<string, any>) {
     for (const k of Object.keys(payload)) {
       if (payload[k] === '' || payload[k] === null || payload[k] === undefined) delete payload[k];
     }
-    checkOk(await saveOrUpdateUser(payload, isUpdate));
+    const res: any = await saveOrUpdateUser(payload, isUpdate);
+    checkOk(res);
+    // 新增用户自动分配"系统用户标配角色"（全员最小权限，见 constants/app.ts DEFAULT_ROLE_ID）；
+    // 分配失败不阻断建号（用户已存在），但必须提示人工补齐，避免产生零权限裸账号。
+    if (!isUpdate && res?.result) {
+      try {
+        checkOk(await addUserRole({ roleId: DEFAULT_ROLE_ID, userIdList: [res.result] }));
+      } catch (e: any) {
+        alert('用户已创建，但默认角色分配失败：' + (e.message || '未知错误') + '。请手动在"角色分配"中补配。');
+      }
+    }
     userModalOpen.value = false;
     await loadUsers();
     await loadTree();
