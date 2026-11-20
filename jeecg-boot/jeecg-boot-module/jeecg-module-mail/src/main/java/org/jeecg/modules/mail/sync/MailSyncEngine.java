@@ -18,6 +18,7 @@ import jakarta.mail.internet.MimeMultipart;
 
 import org.apache.commons.lang3.StringUtils;
 import org.jeecg.common.exception.JeecgBootException;
+import org.jeecg.common.log.EventLoggers;
 import org.jeecg.modules.mail.delivery.ImapSmtpConnector;
 import org.jeecg.modules.mail.dto.MailServerConfig;
 import org.jeecg.modules.mail.entity.OaMailAccount;
@@ -62,6 +63,12 @@ public class MailSyncEngine {
     /** 收件人摘要长度上限 */
     private static final int TO_SUMMARY_MAX_LENGTH = 200;
 
+    /** 事件名（规划稿 §1 埋点清单） */
+    private static final String EVENT_MAIL_SYNC = "mail.sync";
+
+    private static final String RESULT_OK = "ok";
+    private static final String RESULT_FAILED = "failed";
+
     @Autowired
     private OaMailAccountMapper accountMapper;
 
@@ -85,13 +92,26 @@ public class MailSyncEngine {
         if (account == null) {
             throw new JeecgBootException("邮箱绑定不存在: " + accountId);
         }
+        long start = System.currentTimeMillis();
         Store store = null;
         try {
             store = connector.openImapStore(toImapConfig(account));
-            doSync(account, store);
+            SyncRoundStats stats = doSync(account, store);
             account.setLastSyncTime(new Date());
             accountMapper.updateById(account);
+            EventLoggers.info(EventLoggers.MAIL_EVENT, EVENT_MAIL_SYNC,
+                    "accountId", accountId,
+                    "durationMs", System.currentTimeMillis() - start,
+                    "folders", stats.folders,
+                    "indexed", stats.indexed,
+                    "failedFolders", stats.failedFolders,
+                    "result", RESULT_OK);
         } catch (MessagingException e) {
+            // 负路径埋点：整轮同步失败（单文件夹失败不进入此分支，已在 doSync 内计数）
+            EventLoggers.info(EventLoggers.MAIL_EVENT, EVENT_MAIL_SYNC,
+                    "accountId", accountId,
+                    "durationMs", System.currentTimeMillis() - start,
+                    "result", RESULT_FAILED, "reason", e.getMessage());
             throw new JeecgBootException("邮箱同步失败 accountId=" + accountId + ": " + e.getMessage(), e);
         } finally {
             if (store != null) {
@@ -106,8 +126,12 @@ public class MailSyncEngine {
 
     /**
      * 对已打开的 Store 执行同步（包级可见，供离线单测以 mock Store 直测）。
+     *
+     * @return 本轮聚合统计（mail.sync 事件数据源）：folders=尝试同步的文件夹数，
+     *         indexed=新增/刷新总封数（与单文件夹 info 日志同口径），failedFolders=单文件夹失败数
      */
-    void doSync(OaMailAccount account, Store store) throws MessagingException {
+    SyncRoundStats doSync(OaMailAccount account, Store store) throws MessagingException {
+        SyncRoundStats stats = new SyncRoundStats();
         Map<String, String> customMappings = loadCustomMappings(account.getId());
         Folder root = store.getDefaultFolder();
         for (Folder folder : root.list("*")) {
@@ -123,12 +147,29 @@ public class MailSyncEngine {
                 log.warn("[mail] 文件夹不支持 UID 语义，跳过 accountId={} remoteName={}", account.getId(), remoteName);
                 continue;
             }
-            syncFolder(account.getId(), MailCanonicalFolder.fromCode(canonicalCode), folder, state);
+            stats.folders++;
+            try {
+                syncFolder(account.getId(), MailCanonicalFolder.fromCode(canonicalCode), folder, state, stats);
+            } catch (MessagingException e) {
+                // 单文件夹失败不拖垮整轮同步（如 QQ「其他文件夹」命名空间父目录无法 SELECT）；
+                // 错误不静默：记 warn 且该文件夹游标不回退，修复后下轮续跑
+                stats.failedFolders++;
+                log.warn("[mail] 文件夹同步失败（跳过本轮） accountId={} remoteName={} error={}",
+                        account.getId(), remoteName, e.getMessage());
+            }
         }
+        return stats;
+    }
+
+    /** 单轮同步聚合统计（mail.sync 事件数据源） */
+    static final class SyncRoundStats {
+        int folders;
+        int indexed;
+        int failedFolders;
     }
 
     private void syncFolder(String accountId, MailCanonicalFolder canonical, Folder folder,
-            OaMailFolderState state) throws MessagingException {
+            OaMailFolderState state, SyncRoundStats stats) throws MessagingException {
         UIDFolder uidFolder = (UIDFolder) folder;
         folder.open(Folder.READ_ONLY);
         try {
@@ -152,6 +193,7 @@ public class MailSyncEngine {
             }
             state.setLastUid(maxUid);
             folderStateMapper.updateById(state);
+            stats.indexed += messages.length;
             log.info("[mail] 同步完成 accountId={} folder={} 新增/刷新 {} 封", accountId,
                     canonical.getCode(), messages.length);
         } catch (FolderNotFoundException e) {

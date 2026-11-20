@@ -96,7 +96,7 @@ public class SysUserOnlineController {
         page.setCurrent(pageNo);
         page.setTotal(count);
         // 计算分页总页数
-        page.setPages(count % 10 == 0 ? count / 10 : count / 10 + 1);
+        page.setPages(count % pageSize == 0 ? count / pageSize : count / pageSize + 1);
         page.setRecords(pages);
 
         Result<Page<SysUserOnlineVO>> result = new Result<Page<SysUserOnlineVO>>();

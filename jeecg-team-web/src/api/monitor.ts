@@ -34,6 +34,48 @@ export function listQuartzJobs(params: { pageNo?: number; pageSize?: number; job
   return http.get<any, { result: PageResult<QuartzJobRow> }>('/sys/quartzJob/list', { params });
 }
 
+/** 新增/编辑定时任务 POST /sys/quartzJob/add | /sys/quartzJob/edit */
+export function saveQuartzJob(params: QuartzJobRow & { id?: string }, isUpdate: boolean): Promise<any> {
+  return http.post(isUpdate ? '/sys/quartzJob/edit' : '/sys/quartzJob/add', params);
+}
+
+/** 删除定时任务 DELETE /sys/quartzJob/delete?id= */
+export function deleteQuartzJob(id: string): Promise<any> {
+  return http.delete('/sys/quartzJob/delete', { params: { id } });
+}
+
+/** 暂停/启动/立即执行 GET /sys/quartzJob/pause|resume|execute?id= */
+export function controlQuartzJob(action: 'pause' | 'resume' | 'execute', id: string): Promise<any> {
+  return http.get(`/sys/quartzJob/${action}`, { params: { id } });
+}
+
+// ---- 数据变更日志（/sys/dataLog，确权审计：数据修改前后快照；权限码 system:dataLog:*） ----
+export interface DataLogRow {
+  id: string;
+  createBy?: string;
+  createName?: string;
+  createTime?: string;
+  dataTable?: string;
+  dataId?: string;
+  dataContent?: string;
+  dataVersion?: number;
+  type?: string;
+}
+
+export function listDataLogs(params: { pageNo?: number; pageSize?: number; dataTable?: string; createBy?: string }) {
+  return http.get<any, { result: PageResult<DataLogRow> }>('/sys/dataLog/list', { params });
+}
+
+/** 历史版本列表 GET /sys/dataLog/queryDataVerList?dataTable=&dataId=&type=json */
+export function listDataLogVersions(params: { dataTable: string; dataId: string }) {
+  return http.get<any, { result: DataLogRow[] }>('/sys/dataLog/queryDataVerList', { params: { ...params, type: 'json' } });
+}
+
+/** 两版本对比 GET /sys/dataLog/queryCompareList?dataId1=&dataId2= */
+export function compareDataLogs(dataId1: string, dataId2: string) {
+  return http.get<any, { result: DataLogRow[] }>('/sys/dataLog/queryCompareList', { params: { dataId1, dataId2 } });
+}
+
 // ---- 在线用户（/sys/online，SysUserOnlineVO 口径） ----
 export interface OnlineUserRow {
   id: string;
@@ -41,6 +83,8 @@ export interface OnlineUserRow {
   realname?: string;
   phone?: string;
   sex?: number; // 1=男 2=女
+  /** 会话标识（强退按此字段），注意：id 是用户主键，同用户恒相同，不能当会话ID展示 */
+  token?: string;
 }
 
 export function listOnlineUsers(params: { pageNo?: number; pageSize?: number; username?: string }) {

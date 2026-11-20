@@ -6,6 +6,10 @@ import { useRouter } from 'vue-router';
 import { PhMagnifyingGlass, PhPlus, PhArrowRight, PhTrash, PhX } from '@phosphor-icons/vue';
 import { fetchTaskBoard, addTask, editTask, changeTaskStatus, deleteTask, type Task } from '@/api/team';
 import { renderMarkdown } from '@/utils/markdown';
+import { timeAgo } from '@/utils/time';
+import IssueListHeader from '@/components/IssueListHeader.vue';
+import IssueItem from '@/components/IssueItem.vue';
+import { fromTask } from '@/constants/issue';
 import {
   TASK_STATUSES, TASK_TAGS, TASK_PRIORITIES, TAG_CLASS, PRIORITY_CLASS,
   type TaskStatusKey, type TaskTag, type TaskPriority,
@@ -18,12 +22,11 @@ const errorMsg = ref('');
 const busyId = ref('');
 const dragId = ref('');
 
-// 视图模式与筛选条件
-const viewMode = ref<'board' | 'list'>('board');
+// 视图模式与筛选条件（默认列表：对标 GitHub Issues，看板为辅助视图）
+const viewMode = ref<'board' | 'list'>('list');
 const searchQuery = ref('');
 const filterTag = ref<string>('all');
 const filterPriority = ref<string>('all');
-const filterStatus = ref<TaskStatusKey | 'all'>('all');
 
 async function load() {
   loading.value = true;
@@ -48,8 +51,7 @@ const filterFn = (t: Task) => {
   const matchSearch = !q || t.title.toLowerCase().includes(q) || (t.description || '').toLowerCase().includes(q);
   const matchTag = filterTag.value === 'all' || t.tag === filterTag.value;
   const matchPriority = filterPriority.value === 'all' || t.priority === filterPriority.value;
-  const matchStatus = filterStatus.value === 'all' || t.status === filterStatus.value;
-  return matchSearch && matchTag && matchPriority && matchStatus;
+  return matchSearch && matchTag && matchPriority;
 };
 
 const filteredBoard = computed(() => ({
@@ -58,26 +60,17 @@ const filteredBoard = computed(() => ({
   done: board.done.filter(filterFn),
 }));
 
+// ---- 列表视图：Open/Closed 口径对齐 GitHub（Open = 未完成，Closed = 已完成） ----
+const listScope = ref<'open' | 'closed'>('open');
+const baseFiltered = computed(() => allTasks.value.filter(filterFn));
+const openCount = computed(() => baseFiltered.value.filter((t) => t.status !== 'done').length);
+const closedCount = computed(() => baseFiltered.value.filter((t) => t.status === 'done').length);
+
 const filteredList = computed(() => {
   const order: Record<TaskStatusKey, number> = { todo: 0, doing: 1, done: 2 };
-  return allTasks.value.filter(filterFn).sort((a, b) => order[a.status] - order[b.status]);
-});
-
-/** 各状态计数：筛选栏的分段控件用，不受 filterStatus 自身影响 */
-const statusCounts = computed(() => {
-  const base = allTasks.value.filter((t) => {
-    const q = searchQuery.value.toLowerCase();
-    const matchSearch = !q || t.title.toLowerCase().includes(q) || (t.description || '').toLowerCase().includes(q);
-    const matchTag = filterTag.value === 'all' || t.tag === filterTag.value;
-    const matchPriority = filterPriority.value === 'all' || t.priority === filterPriority.value;
-    return matchSearch && matchTag && matchPriority;
-  });
-  return {
-    all: base.length,
-    todo: base.filter((t) => t.status === 'todo').length,
-    doing: base.filter((t) => t.status === 'doing').length,
-    done: base.filter((t) => t.status === 'done').length,
-  };
+  return baseFiltered.value
+    .filter((t) => (listScope.value === 'open' ? t.status !== 'done' : t.status === 'done'))
+    .sort((a, b) => order[a.status] - order[b.status]);
 });
 
 // ---- 新增 / 编辑 ----
@@ -219,6 +212,14 @@ function taskLabel(task: Task) {
   return task.taskNo ? '#' + task.taskNo : '#' + shortId(task.id);
 }
 
+/** 列表行元信息：#序号 · 创建人 opened x ago（GitHub 口径） */
+function rowMeta(task: Task): string {
+  return [taskLabel(task), task.createBy || '未署名', 'opened ' + (timeAgo(task.createTime) || '—')].join(' · ');
+}
+
+/** 列表视图行数据：任务 + 归一化视图模型（状态/标签），一次映射 */
+const listRows = computed(() => filteredList.value.map((t) => ({ task: t, view: fromTask(t) })));
+
 /** 列表行点击进入详情页；看板卡片仍走 openEdit 弹窗 */
 function openDetail(task: Task) {
   router.push('/tools/taskboard/' + task.id);
@@ -241,20 +242,12 @@ function openDetail(task: Task) {
       </div>
     </div>
 
-    <!-- 搜索与属性筛选 -->
+    <!-- 搜索（属性筛选在列表头 filters 插槽内，看板视图下隐藏） -->
     <div class="filter-row">
       <div class="search-box search-box--wide">
         <PhMagnifyingGlass :size="15" class="search-box__icon" />
         <input v-model="searchQuery" type="text" placeholder="搜索任务标题与描述…" class="search-box__input" />
       </div>
-      <select v-model="filterTag" class="select-sm">
-        <option value="all">所有标签</option>
-        <option v-for="t in TASK_TAGS" :key="t" :value="t">{{ t }}</option>
-      </select>
-      <select v-model="filterPriority" class="select-sm">
-        <option value="all">所有优先级</option>
-        <option v-for="p in TASK_PRIORITIES" :key="p" :value="p">{{ p }}</option>
-      </select>
     </div>
 
     <div v-if="errorMsg" class="alert alert--danger">{{ errorMsg }}</div>
@@ -324,65 +317,39 @@ function openDetail(task: Task) {
       </section>
     </div>
 
-    <!-- 列表视图（对标 GitHub Issues 列表） -->
-    <div v-else class="issue-list">
-      <div class="issue-list__toolbar">
-        <div class="segmented segmented--plain">
-          <button :class="{ active: filterStatus === 'all' }" @click="filterStatus = 'all'">
-            全部 <span class="counter">{{ statusCounts.all }}</span>
-          </button>
-          <button
-            v-for="s in TASK_STATUSES"
-            :key="s.key"
-            :class="{ active: filterStatus === s.key }"
-            @click="filterStatus = s.key"
-          >
-            <span class="status-symbol" :class="`status-symbol--${s.key}`">{{ statusSymbol(s.key) }}</span>
-            {{ s.title }} <span class="counter">{{ statusCounts[s.key] }}</span>
-          </button>
-        </div>
-      </div>
+    <!-- 列表视图（对标 GitHub Issues 列表：Open/Closed 头 + 行 Grid） -->
+    <template v-else>
+      <IssueListHeader v-model="listScope" :open-count="openCount" :closed-count="closedCount">
+        <template #filters>
+          <select v-model="filterTag" class="select-sm">
+            <option value="all">所有标签</option>
+            <option v-for="t in TASK_TAGS" :key="t" :value="t">{{ t }}</option>
+          </select>
+          <select v-model="filterPriority" class="select-sm">
+            <option value="all">所有优先级</option>
+            <option v-for="p in TASK_PRIORITIES" :key="p" :value="p">{{ p }}</option>
+          </select>
+        </template>
+      </IssueListHeader>
 
-      <ul class="issue-list__body">
-        <li
-          v-for="task in filteredList"
-          :key="task.id"
-          class="issue-row"
-          @click="openDetail(task)"
+      <ul class="issue-panel">
+        <IssueItem
+          v-for="row in listRows"
+          :key="row.task.id"
+          :state="row.view.state"
+          :title="row.task.title"
+          :labels="row.view.labels"
+          :meta="rowMeta(row.task)"
+          :assignee-name="row.task.assigneeName"
+          @open="openDetail(row.task)"
         >
-          <span class="issue-row__status">
-            <span class="status-symbol" :class="`status-symbol--${task.status}`">{{ statusSymbol(task.status) }}</span>
-          </span>
-
-          <div class="issue-row__primary">
-            <span class="issue-row__title">{{ task.title }}</span>
-          </div>
-
-          <div class="issue-row__metadata">
-            <span class="issue-row__id">{{ taskLabel(task) }}</span>
-            <span>·</span>
-            <span>{{ task.assigneeName || '未指派' }}</span>
-            <template v-if="task.dueDate">
-              <span>·</span>
-              <span :class="{ 'due--overdue': isOverdue(task) }">
-                {{ task.dueDate }}{{ isOverdue(task) ? ' 已逾期' : '' }}
-              </span>
-            </template>
-          </div>
-
-          <div class="issue-row__labels">
-            <span v-if="task.tag" class="tag" :class="TAG_CLASS[task.tag as TaskTag]">{{ task.tag }}</span>
-            <span v-if="task.priority" class="tag" :class="PRIORITY_CLASS[task.priority as TaskPriority]">{{ task.priority }}</span>
-          </div>
-
-          <div class="issue-row__actions">
-            <button class="icon-btn" title="删除" @click.stop="remove(task)"><PhTrash :size="14" /></button>
-          </div>
-        </li>
+          <template #actions>
+            <button class="icon-btn" title="删除" @click.stop="remove(row.task)"><PhTrash :size="14" /></button>
+          </template>
+        </IssueItem>
+        <li v-if="!listRows.length" class="empty-state">没有匹配的任务</li>
       </ul>
-
-      <div v-if="!filteredList.length" class="empty-state">没有匹配的任务</div>
-    </div>
+    </template>
 
     <!-- 编辑 / 新建弹窗 -->
     <div v-if="editorOpen" class="modal-overlay" @click.self="editorOpen = false">
@@ -740,141 +707,20 @@ function openDetail(task: Task) {
 .link-btn--danger:hover { color: var(--danger); background: var(--danger-50); }
 .link-btn:disabled { opacity: 0.5; cursor: not-allowed; }
 
-/* ---------- 列表视图（GitHub Issues 列表行结构） ---------- */
-.issue-list {
-  background: var(--bg-card);
-  border: 1px solid var(--border-color);
-  border-radius: var(--radius-md);
-  overflow: hidden;
-}
-
-/* 筛选栏：48px 灰底，对应 GitHub container__FLA0EF */
-.issue-list__toolbar {
-  height: 48px;
-  padding: 0 var(--spacing-md);
-  display: flex;
-  align-items: center;
-  background: var(--gray-50);
-  border-bottom: 1px solid var(--border-color);
-}
-
-/* 筛选栏内的分段控件：无底色，选中项自带白底 */
-.segmented--plain {
-  background: transparent;
-  padding: 0;
-  gap: var(--spacing-xs);
-}
-.segmented--plain button {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  padding: 4px 10px;
-  height: 28px;
-  border-radius: var(--radius-sm);
-  font-size: var(--font-size-md);
-  font-weight: 400;
-  color: var(--text-muted);
-}
-.segmented--plain button:hover {
-  background: var(--gray-200);
-  color: var(--text-main);
-}
-.segmented--plain button.active {
-  background: var(--bg-card);
-  color: var(--text-main);
-  font-weight: 500;
-  box-shadow: var(--shadow-xs);
-}
-
-.issue-list__body {
+/* ---------- 列表视图（GitHub Issues 列表：组件 IssueListHeader + IssueItem） ---------- */
+.issue-panel {
   list-style: none;
   margin: 0;
   padding: 0;
-}
-
-/* 行：Grid 命名区域，对应 GitHub listItem__X41oTe
- * 桌面两行：status | primary + metadata | labels | actions */
-.issue-row {
-  display: grid;
-  grid-template-columns: min-content minmax(30%, 1fr) minmax(0, max-content) min-content;
-  grid-template-rows: auto auto;
-  grid-template-areas:
-    "status primary labels actions"
-    "status metadata metadata actions";
-  gap: 2px 8px;
-  padding: 8px 16px;
-  min-height: 32px;
-  cursor: pointer;
-  transition: background-color var(--duration-fast) var(--ease-out);
-}
-.issue-row:hover { background: var(--gray-50); }
-.issue-row:not(:last-child) {
-  border-bottom: 1px solid var(--border-color-light);
-}
-
-.issue-row__status {
-  grid-area: status;
-  padding-top: 3px;
-  display: flex;
-  align-items: flex-start;
-}
-
-.issue-row__primary {
-  grid-area: primary;
-  min-width: 0;
-  display: flex;
-  align-items: baseline;
-}
-
-/* 标题：16px / 500 / 最多两行（对应 GitHub heading__fzQskI） */
-.issue-row__title {
-  font-size: var(--font-size-lg);
-  font-weight: 500;
-  line-height: 1.5;
-  color: var(--text-main);
+  background: var(--bg-body);
+  border: 1px solid var(--border-color);
+  border-top: none;
+  border-radius: 0 0 var(--radius-md) var(--radius-md);
   overflow: hidden;
-  text-overflow: ellipsis;
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
-  word-break: break-word;
 }
-.issue-row:hover .issue-row__title { color: var(--primary); }
-
-/* 元信息：12px / muted / gap 4px（对应 GitHub container__W45oI6） */
-.issue-row__metadata {
-  grid-area: metadata;
-  display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 4px;
-  font-size: var(--font-size-sm);
-  font-weight: 400;
-  color: var(--text-muted);
-  line-height: 1.4;
+.issue-panel .empty-state {
+  padding: var(--spacing-3xl) 0;
 }
-.issue-row__id {
-  font-variant-numeric: tabular-nums;
-  opacity: 0.8;
-}
-
-.issue-row__labels {
-  grid-area: labels;
-  display: flex;
-  align-items: center;
-  justify-content: flex-end;
-  flex-wrap: wrap;
-  gap: 4px;
-}
-
-.issue-row__actions {
-  grid-area: actions;
-  display: flex;
-  align-items: center;
-  opacity: 0;
-  transition: opacity var(--duration-fast) var(--ease-out);
-}
-.issue-row:hover .issue-row__actions { opacity: 1; }
 
 /* ---------- 弹窗 ---------- */
 .modal-overlay {
@@ -980,17 +826,12 @@ function openDetail(task: Task) {
   gap: var(--spacing-lg);
 }
 
-/* 响应式：窄屏降为三行（labels 下移整行） */
+/* 响应式：中等宽度看板降为双列，窄屏单列 */
+@media (max-width: 1100px) {
+  .board { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
 @media (max-width: 768px) {
   .board { grid-template-columns: 1fr; }
   .form-row { grid-template-columns: 1fr; }
-  .issue-row {
-    grid-template-columns: min-content minmax(0, 1fr) min-content;
-    grid-template-areas:
-      "status primary actions"
-      "status metadata actions"
-      "status labels labels";
-  }
-  .issue-row__labels { justify-content: flex-start; }
 }
 </style>

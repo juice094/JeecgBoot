@@ -288,6 +288,8 @@ jeecg:
     # 低代码模式（dev:开发模式，prod:发布模式——关闭所有在线开发配置能力）
     lowCodeMode: dev
     # 是否允许同一账号多地同时登录 （为 true 时允许一起登录, 为 false 时新登录挤掉旧登录）
+    # 2026-11-20 曾改 false（单点登录），实测对多浏览器/多人共用账号的测试走查不友好（互踢无法正常登录），
+    # 同日改回 true：dev 以测试友好为先。prod 当前同为 true（jeecg 默认），如需单点收口在 application-prod.yml 改 false
     is-concurrent: true
     # 登录是否启用验证码（docs/13 §五基线=本机关；2026-11-17 由 true 改回 false，宿知悉）
     enableLoginCaptcha: false
@@ -317,6 +319,8 @@ jeecg:
     excludeUrls: /test/jeecgDemo/demo3,/test/jeecgDemo/redisDemo/**,/bigscreen/category/**,/bigscreen/visual/**,/bigscreen/map/**,/jmreport/bigscreen2/**
   # 短信发送方式 aliyun阿里云短信 tencent腾讯云短信
   smsSendType: aliyun
+  # 短信 mock（dev only：不发真实短信，验证码打印到后端日志，配合忘记密码流程本机联调；生产严禁开启）
+  smsMock: true
   #阿里云oss存储和大鱼短信秘钥配置
   oss:
     accessKey: ??

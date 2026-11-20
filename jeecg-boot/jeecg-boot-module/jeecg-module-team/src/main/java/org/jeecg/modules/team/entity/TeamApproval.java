@@ -52,6 +52,18 @@ public class TeamApproval extends JeecgEntity implements Serializable {
     private String reason;
 
     /**
+     * 类别专属字段值（JSON 原文；按模板 field_schema 校验后落库）
+     */
+    @Schema(description = "类别专属字段值（JSON）")
+    private String formData;
+
+    /**
+     * 金额（从 form_data.amount 提取；供范围查询、聚合、金额分级审批）
+     */
+    @Schema(description = "金额", example = "3800.00")
+    private java.math.BigDecimal amount;
+
+    /**
      * 状态: pending/approved/rejected
      */
     @Schema(description = "状态: pending/approved/rejected", example = "pending")

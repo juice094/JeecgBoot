@@ -9,6 +9,8 @@ import org.jeecg.modules.mail.dto.MailFolderMappingReqDTO;
 import org.jeecg.modules.mail.dto.MailServerConfig;
 import org.jeecg.modules.mail.dto.MailSyncStatusDTO;
 import org.jeecg.modules.mail.dto.OaMailAccountRespDTO;
+import org.jeecg.modules.mail.dto.OaMailMessageDetailDTO;
+import org.jeecg.modules.mail.dto.SendMailMessageReqDTO;
 import org.jeecg.modules.mail.entity.OaMailAccount;
 import org.jeecg.modules.mail.entity.OaMailFolderState;
 import org.jeecg.modules.mail.entity.OaMailMessageIndex;
@@ -64,8 +66,37 @@ public interface IOaMailService extends IService<OaMailAccount>, MailAccountBind
 
     /**
      * 列表查询（只查索引表，不触发 IMAP LIST）。
+     *
+     * @param accountId       绑定 id（必填）
+     * @param canonicalFolder 规范文件夹（可空=全部）
+     * @param keyword         主题关键字（可空；LIKE 匹配，试点量级可接受全表扫描）
+     * @param unreadOnly      仅未读（null/false 表示不筛选）
+     * @param pageNo          页码
+     * @param pageSize        每页条数
      */
-    IPage<OaMailMessageIndex> pageMessages(String accountId, String canonicalFolder, Integer pageNo, Integer pageSize);
+    IPage<OaMailMessageIndex> pageMessages(String accountId, String canonicalFolder, String keyword,
+            Boolean unreadOnly, Integer pageNo, Integer pageSize);
+
+    /**
+     * 邮件详情（B-3）：实时按 (文件夹, imapUid) FETCH 正文（text/html + 附件元数据），
+     * 打开即回写已读（IMAP \Seen + 索引 read_flag）。
+     */
+    OaMailMessageDetailDTO getMessageDetail(String id);
+
+    /**
+     * 已读/未读置位（B-3）：IMAP \Seen 回写 + 索引列同步。
+     */
+    void markMessageRead(String id, boolean read);
+
+    /**
+     * 删除（B-5）：有「已删除」映射则移入 Trash，否则永久删除；索引行同步删除。
+     */
+    void deleteMessage(String id);
+
+    /**
+     * 写信发送（B-6）：经绑定账号 SMTP 直发；发后 best-effort 追加「已发送」。
+     */
+    String sendMessage(SendMailMessageReqDTO req);
 
     // ---- MailAccountBindingApi 对齐说明 ----
     // bind(MailAccountBindReqDTO)        -> 绑定：双测连通过才落库（B-1 全量）

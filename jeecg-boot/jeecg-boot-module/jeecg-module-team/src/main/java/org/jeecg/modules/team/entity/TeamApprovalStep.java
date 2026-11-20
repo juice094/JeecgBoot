@@ -43,6 +43,12 @@ public class TeamApprovalStep implements Serializable {
     private Integer stepNo;
 
     /**
+     * 审批人 sys_user.id（新增，历史行为空走 approverName 兜底）
+     */
+    @Schema(description = "审批人 sys_user.id")
+    private String approverId;
+
+    /**
      * 审批人姓名
      */
     @Schema(description = "审批人姓名")

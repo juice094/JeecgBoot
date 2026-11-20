@@ -125,6 +125,9 @@ public class SysDepartServiceImpl extends ServiceImpl<SysDepartMapper, SysDepart
         // 代码逻辑说明: 【QQYUN-13427】部门选择组件修改:需要过滤掉岗位 只保留 公司 子公司 部门---
         query.ne(SysDepart::getOrgCategory, DepartCategoryEnum.DEPART_CATEGORY_POST.getValue());
 		query.orderByAsc(SysDepart::getDepartOrder);
+		// 【2026-11-17 团队协作 fork】排序确定性兜底：departOrder 同值（多为默认 0）时
+		// 按创建时间、主键升序，保证部门树每次加载顺序稳定，避免同名节点位置抖动放大误选。
+		query.orderByAsc(SysDepart::getCreateTime).orderByAsc(SysDepart::getId);
 		List<SysDepart> list = this.list(query);
 		//设置用户id,让前台显示
         this.setUserIdsByDepList(list);

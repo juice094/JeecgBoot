@@ -73,12 +73,12 @@ onMounted(load);
           <tr v-else-if="!rows.length">
             <td colspan="5" style="text-align: center; color: var(--text-muted)">暂无在线用户</td>
           </tr>
-          <tr v-for="row in rows" v-else :key="row.id">
+          <tr v-for="row in rows" v-else :key="row.token || row.id">
             <td>{{ row.username || '-' }}</td>
             <td>{{ row.realname || '-' }}</td>
             <td>{{ sexTitle(row.sex) }}</td>
             <td>{{ row.phone || '-' }}</td>
-            <td style="max-width: 280px; overflow: hidden; text-overflow: ellipsis">{{ row.id }}</td>
+            <td style="max-width: 280px; overflow: hidden; text-overflow: ellipsis">{{ row.token || '-' }}</td>
           </tr>
         </tbody>
       </table>

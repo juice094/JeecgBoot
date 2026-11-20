@@ -20,6 +20,16 @@ pnpm install
 pnpm dev        # http://localhost:3200，/jeecg-boot 已代理到本机后端 8081
 ```
 
+Windows 双击等价：`scripts\check-env.bat`（环境检查+装依赖）→ `scripts\start-dev.bat`（启动）。
+
+## 离线传递（GitHub 访问受限的队友）
+
+源码可能经微信等渠道传压缩包，收包方按此走：
+
+1. 发包方双击 `scripts\pack-source.bat` → 项目上级目录产出 `jeecg-team-web-src-YYYYMMDD.zip`（约 1MB，已排除 node_modules/dist/target/.git）
+2. 收包方解压后依次双击：`scripts\check-env.bat`（需 Node ≥ 20.19，pnpm 缺失时自动用 corepack 装）→ `scripts\start-dev.bat`
+3. 后端需自行在 8081 启动（见 JeecgBoot 仓库说明）；`start-dev.bat` 会检测 8081 是否在跑并提示
+
 - HTTP 出口：`src/utils/http.ts`（axios 实例，token 从 localStorage 读取，X-Access-Token 头；成功码与键名约定见 `src/constants/app.ts`）
 - 主题变量：`src/styles/variables.css`（青绿主色 #127a7b，提取自参考原型；令牌分语义/阶梯两层）
 - 依赖版本与 jeecgboot-vue3 同栈（Vite 8 / Vue 3.5 / plugin-vue 6），本机 Node 24 + pnpm 11 已验证

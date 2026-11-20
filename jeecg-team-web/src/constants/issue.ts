@@ -134,13 +134,30 @@ export function fromBug(bug: Bug): UnifiedIssue {
 /** Approval → UnifiedIssue */
 export function fromApproval(approval: Approval): UnifiedIssue {
   const stateMap: Record<string, UnifiedState> = {
+    draft: 'open',
     pending: 'active',
+    returned: 'active',
     approved: 'done',
     rejected: 'closed',
+    canceled: 'closed',
   };
   const state = stateMap[approval.status] ?? 'active';
-  const labelMap: Record<string, string> = { pending: '审批中', approved: '已通过', rejected: '已拒绝' };
-  const clsMap: Record<string, string> = { pending: 'tag--warning', approved: 'tag--success', rejected: 'tag--danger' };
+  const labelMap: Record<string, string> = {
+    draft: '草稿',
+    pending: '审批中',
+    returned: '已退回',
+    approved: '已通过',
+    rejected: '已拒绝',
+    canceled: '已撤销',
+  };
+  const clsMap: Record<string, string> = {
+    draft: 'tag--neutral',
+    pending: 'tag--warning',
+    returned: 'tag--info',
+    approved: 'tag--success',
+    rejected: 'tag--danger',
+    canceled: 'tag--neutral',
+  };
 
   return {
     uid: 'approval:' + approval.id,

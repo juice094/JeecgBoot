@@ -4,6 +4,8 @@
 import { computed, onMounted, ref } from 'vue';
 import { useRouter } from 'vue-router';
 import { PhMagnifyingGlass, PhArrowSquareOut } from '@phosphor-icons/vue';
+import IssueListHeader from '@/components/IssueListHeader.vue';
+import IssueItem from '@/components/IssueItem.vue';
 import { fetchTaskBoard, listBugs, listApprovals, listApprovalTodos } from '@/api/team';
 import {
   fromTask, fromBug, fromApproval,
@@ -100,11 +102,31 @@ const filtered = computed(() => {
     });
 });
 
+// ---- 列表头 Open/Closed 口径（对齐 GitHub：Open = 待处理+进行中，Closed = 已完成+已关闭） ----
+const listScope = ref<'open' | 'closed'>('open');
+const openCount = computed(() => filtered.value.filter((i) => i.state === 'open' || i.state === 'active').length);
+const closedCount = computed(() => filtered.value.filter((i) => i.state === 'done' || i.state === 'closed').length);
+const scoped = computed(() =>
+  filtered.value.filter((i) =>
+    listScope.value === 'open'
+      ? i.state === 'open' || i.state === 'active'
+      : i.state === 'done' || i.state === 'closed',
+  ),
+);
+
 const kindCounts = computed(() => {
   const counts: Record<string, number> = { all: items.value.length };
   ISSUE_KINDS.forEach((k) => { counts[k] = items.value.filter((i) => i.kind === k).length; });
   return counts;
 });
+
+/** 行元信息：状态 · 指派人 · 截止（逾期标注） */
+function rowMeta(item: UnifiedIssue): string {
+  const parts = [item.stateLabel];
+  if (item.assignee) parts.push(item.assignee);
+  if (item.dueDate) parts.push(item.dueDate + (item.overdue ? ' 已逾期' : ''));
+  return parts.join(' · ');
+}
 
 function openSource(item: UnifiedIssue) {
   router.push(item.sourcePath);
@@ -148,64 +170,35 @@ function openSource(item: UnifiedIssue) {
     <div v-if="loadError" class="alert">{{ loadError }}</div>
     <div v-if="loading" class="empty-state">加载中…</div>
 
-    <!-- 列表 -->
-    <div v-else class="issue-list">
-      <div class="issue-list__toolbar">
-        <span>{{ filtered.length }} 个工作项</span>
-      </div>
+    <!-- 列表（GitHub Issues 列表：Open/Closed 头 + IssueItem 行） -->
+    <template v-else>
+      <IssueListHeader v-model="listScope" :open-count="openCount" :closed-count="closedCount">
+        <template #filters>
+          <span class="list-count">{{ scoped.length }} 个工作项</span>
+        </template>
+      </IssueListHeader>
 
-      <ul class="issue-list__body">
-        <li
-          v-for="item in filtered"
+      <ul class="issue-panel">
+        <IssueItem
+          v-for="item in scoped"
           :key="item.uid"
-          class="issue-row"
-          :class="{ 'issue-row--overdue': item.overdue }"
-          @click="openSource(item)"
+          :state="item.state"
+          :title="item.title"
+          :labels="[{ text: ISSUE_KIND_META[item.kind].label, cls: ISSUE_KIND_META[item.kind].cls }, ...item.labels]"
+          :meta="rowMeta(item)"
+          @open="openSource(item)"
         >
-          <span class="issue-row__status" :title="item.stateLabel">
-            <span class="state-symbol" :class="'state-symbol--' + item.state">{{ STATE_META[item.state].symbol }}</span>
-          </span>
-
-          <div class="issue-row__primary">
-            <span class="issue-row__title">{{ item.title }}</span>
-          </div>
-
-          <div class="issue-row__metadata">
-            <span class="tag tag--sm" :class="ISSUE_KIND_META[item.kind].cls">{{ ISSUE_KIND_META[item.kind].label }}</span>
-            <span class="tag tag--sm" :class="item.stateCls">{{ item.stateLabel }}</span>
-            <template v-if="item.assignee">
-              <span class="meta-sep">·</span>
-              <span>{{ item.assignee }}</span>
-            </template>
-            <template v-if="item.dueDate">
-              <span class="meta-sep">·</span>
-              <span :class="{ 'meta-overdue': item.overdue }">
-                {{ item.dueDate }}{{ item.overdue ? ' 已逾期' : '' }}
-              </span>
-            </template>
-          </div>
-
-          <div class="issue-row__labels">
-            <span
-              v-for="label in item.labels"
-              :key="label.text"
-              class="tag"
-              :class="label.cls"
-            >{{ label.text }}</span>
-          </div>
-
-          <div class="issue-row__actions">
+          <template #actions>
             <button class="icon-btn" title="前往处理" @click.stop="openSource(item)">
               <PhArrowSquareOut :size="14" />
             </button>
-          </div>
+          </template>
+        </IssueItem>
+        <li v-if="!scoped.length" class="empty-state">
+          {{ items.length ? '没有匹配的工作项' : '暂无工作项' }}
         </li>
       </ul>
-
-      <div v-if="!filtered.length" class="empty-state">
-        {{ items.length ? '没有匹配的工作项' : '暂无工作项' }}
-      </div>
-    </div>
+    </template>
   </div>
 </template>
 
@@ -336,132 +329,26 @@ function openSource(item: UnifiedIssue) {
   border: 1px solid var(--warning-border);
 }
 
-/* ---------- 列表（复用 GitHub Issue 行结构） ---------- */
-.issue-list {
-  background: var(--bg-card);
-  border: 1px solid var(--border-color);
-  border-radius: var(--radius-md);
-  overflow: hidden;
-}
-.issue-list__toolbar {
-  height: 44px;
-  padding: 0 16px;
-  display: flex;
-  align-items: center;
-  background: var(--gray-100);
-  border-bottom: 1px solid var(--border-color-light);
-  font-size: var(--font-size-md);
-  font-weight: 600;
-  color: var(--text-main);
-}
-.issue-list__body {
+/* ---------- 列表（GitHub Issues 列表：组件 IssueListHeader + IssueItem） ---------- */
+.issue-panel {
   list-style: none;
   margin: 0;
   padding: 0;
-}
-
-.issue-row {
-  display: grid;
-  grid-template-columns: min-content minmax(30%, 1fr) minmax(0, max-content) min-content;
-  grid-template-rows: auto auto;
-  grid-template-areas:
-    "status primary labels actions"
-    "status metadata metadata actions";
-  gap: 2px 8px;
-  padding: 8px 16px;
-  min-height: 32px;
-  cursor: pointer;
-  transition: background-color var(--duration-fast) var(--ease-out);
-}
-.issue-row:hover { background: var(--gray-50); }
-.issue-row:not(:last-child) { border-bottom: 1px solid var(--border-color-light); }
-
-.issue-row__status {
-  grid-area: status;
-  padding-top: 3px;
-  display: flex;
-  align-items: flex-start;
-}
-.state-symbol {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 14px;
-  font-size: 12px;
-  line-height: 1;
-}
-.state-symbol--open { color: var(--gray-400); }
-.state-symbol--active { color: var(--warning); }
-.state-symbol--done { color: var(--success); }
-.state-symbol--closed { color: var(--gray-500); }
-
-.issue-row__primary {
-  grid-area: primary;
-  min-width: 0;
-  display: flex;
-  align-items: baseline;
-}
-.issue-row__title {
-  font-size: var(--font-size-lg);
-  font-weight: 500;
-  line-height: 1.5;
-  color: var(--text-main);
+  background: var(--bg-body);
+  border: 1px solid var(--border-color);
+  border-top: none;
+  border-radius: 0 0 var(--radius-md) var(--radius-md);
   overflow: hidden;
-  text-overflow: ellipsis;
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
-  word-break: break-word;
 }
-.issue-row:hover .issue-row__title { color: var(--primary); }
-
-.issue-row__metadata {
-  grid-area: metadata;
-  display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 4px;
+.issue-panel .empty-state {
+  padding: var(--spacing-3xl) 0;
+}
+.list-count {
   font-size: var(--font-size-sm);
-  font-weight: 400;
   color: var(--text-muted);
-  line-height: 1.5;
-}
-.meta-sep { opacity: 0.6; }
-.meta-overdue { color: var(--danger); font-weight: 500; }
-
-.issue-row__labels {
-  grid-area: labels;
-  display: flex;
-  align-items: center;
-  justify-content: flex-end;
-  flex-wrap: wrap;
-  gap: 4px;
-}
-
-.issue-row__actions {
-  grid-area: actions;
-  display: flex;
-  align-items: center;
-  opacity: 0;
-  transition: opacity var(--duration-fast) var(--ease-out);
-}
-.issue-row:hover .issue-row__actions { opacity: 1; }
-
-.tag--sm {
-  height: 18px;
-  padding: 0 6px;
-  font-size: var(--font-size-xs);
 }
 
 @media (max-width: 900px) {
-  .issue-row {
-    grid-template-columns: min-content minmax(0, 1fr) min-content;
-    grid-template-areas:
-      "status primary actions"
-      "status metadata actions"
-      "status labels labels";
-  }
-  .issue-row__labels { justify-content: flex-start; }
   .toolbar__right { flex-wrap: wrap; }
 }
 </style>

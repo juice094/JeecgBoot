@@ -1,17 +1,24 @@
 <script setup lang="ts">
 // 任务详情页（/tools/taskboard/:id）
-// 布局对齐 GitHub Issue 详情：主栏描述+时间线+评论框，右侧元数据栏。
+// 布局对齐 GitHub Issue 详情（.refs/raw/github-issue-3-detail.htm）：
+// 主栏 = 描述卡片 + 时间线（事件与评论按时间混排）+ 评论编辑器；右侧 296px 元数据栏。
 import { computed, onMounted, ref } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
-import { PhArrowLeft, PhTrash, PhPaperclip } from '@phosphor-icons/vue';
+import {
+  PhArrowLeft, PhArrowCounterClockwise, PhArrowsLeftRight, PhChatCircle, PhGearSix, PhPlusCircle, PhTrash,
+} from '@phosphor-icons/vue';
 import {
   fetchTaskDetail, addTaskComment, changeTaskStatus, deleteTask,
   type Task, type TaskComment, type TaskEvent,
 } from '@/api/team';
-import { renderMarkdown } from '@/utils/markdown';
-import { TAG_CLASS, PRIORITY_CLASS, TASK_STATUSES, type TaskTag, type TaskPriority, type TaskStatusKey } from '@/constants/task';
+import { timeAgo } from '@/utils/time';
+import { TASK_STATUSES, TAG_CLASS, PRIORITY_CLASS, type TaskTag, type TaskPriority, type TaskStatusKey } from '@/constants/task';
 import StatusBadge from '@/components/StatusBadge.vue';
 import TimelineItem from '@/components/TimelineItem.vue';
+import TimelineEvent from '@/components/TimelineEvent.vue';
+import CommentCard from '@/components/CommentCard.vue';
+import CommentEditor from '@/components/CommentEditor.vue';
+import SidebarSection from '@/components/SidebarSection.vue';
 
 const route = useRoute();
 const router = useRouter();
@@ -29,6 +36,11 @@ async function load() {
   errorMsg.value = '';
   try {
     const data = await fetchTaskDetail(taskId.value);
+    // 业务错误信封（success=false/result=null，如端点缺失、无权查看）降级为可读文案，不崩溃
+    if (!data.result || !data.result.task) {
+      errorMsg.value = (data as { message?: string }).message || '任务不存在或无权查看';
+      return;
+    }
     task.value = data.result.task;
     comments.value = data.result.comments || [];
     timeline.value = data.result.timeline || [];
@@ -39,9 +51,6 @@ async function load() {
   }
 }
 onMounted(load);
-
-/** 正文 Markdown 渲染 */
-const bodyHtml = computed(() => renderMarkdown(task.value?.description || ''));
 
 /** 状态文案与色调 */
 const statusMeta = computed(() => {
@@ -64,7 +73,6 @@ const ACTION_TEXT: Record<string, string> = {
   create: '创建了此任务',
   submit: '提交了任务',
   change_status: '变更了状态',
-  comment: '发表了评论',
   approve: '通过了审批',
   reject: '拒绝了审批',
 };
@@ -77,20 +85,44 @@ function eventText(ev: TaskEvent): string {
   return base;
 }
 
+/** 事件动作 -> 徽章图标（comment 事件不渲染：由评论卡片自身代表） */
+const ACTION_ICON: Record<string, unknown> = {
+  create: PhPlusCircle,
+  change_status: PhArrowsLeftRight,
+};
+
+function eventIcon(ev: TaskEvent): unknown {
+  return ACTION_ICON[ev.action] || PhArrowCounterClockwise;
+}
+
 function statusLabel(code: string): string {
   const found = TASK_STATUSES.find((s) => s.key === code);
   return found ? found.title : code;
 }
 
-function formatTime(t?: string): string {
-  if (!t) return '';
-  return t.replace('T', ' ').slice(0, 16);
+type TimelineNode =
+  | { kind: 'event'; time: string; event: TaskEvent }
+  | { kind: 'comment'; time: string; comment: TaskComment };
+
+/** 时间线混排：事件（剔除 comment 类，避免与评论卡重复）+ 评论，按时间升序 */
+const nodes = computed<TimelineNode[]>(() => {
+  const events: TimelineNode[] = timeline.value
+    .filter((ev) => ev.action !== 'comment')
+    .map((ev) => ({ kind: 'event' as const, time: ev.createTime || '', event: ev }));
+  const commentNodes: TimelineNode[] = comments.value.map((c) => ({
+    kind: 'comment' as const,
+    time: c.createTime || '',
+    comment: c,
+  }));
+  return [...events, ...commentNodes].sort((a, b) => a.time.localeCompare(b.time));
+});
+
+function nodeKey(node: TimelineNode): string {
+  return node.kind + '-' + (node.kind === 'event' ? node.event.id : node.comment.id);
 }
 
 // ---- 评论 ----
-const composerTab = ref<'write' | 'preview'>('write');
 const commentBody = ref('');
-const previewHtml = computed(() => renderMarkdown(commentBody.value));
 
 async function submitComment() {
   if (!commentBody.value.trim() || busy.value) return;
@@ -99,7 +131,6 @@ async function submitComment() {
   try {
     await addTaskComment(taskId.value, commentBody.value.trim());
     commentBody.value = '';
-    composerTab.value = 'write';
     await load();
   } catch (e: any) {
     errorMsg.value = e.message || '评论失败';
@@ -166,114 +197,92 @@ function back() {
           <div class="detail-header__meta">
             <StatusBadge :label="statusMeta.label" :tone="statusMeta.tone" />
             <span class="detail-header__by">
-              {{ task.createBy || '未知' }} 创建于 {{ formatTime(task.createTime) || '—' }}
+              {{ task.createBy || '未知' }} opened {{ timeAgo(task.createTime) || '—' }}
             </span>
           </div>
         </header>
 
-        <!-- 描述卡片 -->
-        <section class="comment-card">
-          <div class="comment-card__head">
+        <!-- 描述卡片（时间线首项） -->
+        <TimelineItem>
+          <template #badge>
             <span class="avatar avatar--sm">{{ (task.createBy || '?').charAt(0).toUpperCase() }}</span>
-            <span><strong>{{ task.createBy || '未知' }}</strong> 创建了此任务</span>
-          </div>
-          <div class="comment-card__body">
-            <div v-if="bodyHtml" class="md-body" v-html="bodyHtml"></div>
-            <div v-else class="comment-card__empty">暂无描述</div>
-          </div>
-        </section>
+          </template>
+          <CommentCard
+            :author="task.createBy || '未知'"
+            :subtitle="'opened ' + (timeAgo(task.createTime) || '—')"
+            :badges="['Owner']"
+            :body="task.description || '_暂无描述_'"
+          />
+        </TimelineItem>
 
-        <!-- 时间线 -->
-        <ul class="timeline">
-          <TimelineItem v-for="ev in timeline" :key="ev.id">
-            <template #badge>●</template>
-            <div class="timeline__line">
-              <strong>{{ ev.operatorName || ev.operatorId || '系统' }}</strong>
-              {{ eventText(ev) }}
-              <span class="timeline__ago">{{ formatTime(ev.createTime) }}</span>
-            </div>
-          </TimelineItem>
+        <!-- 时间线：事件与评论按时间混排 -->
+        <div class="timeline">
+          <template v-for="node in nodes" :key="nodeKey(node)">
+            <TimelineEvent v-if="node.kind === 'event'">
+              <template #icon>
+                <component :is="eventIcon(node.event)" :size="14" />
+              </template>
+              <strong>{{ node.event.operatorName || node.event.operatorId || '系统' }}</strong>
+              {{ eventText(node.event) }}
+              <span class="timeline__ago">{{ timeAgo(node.event.createTime) }}</span>
+            </TimelineEvent>
 
-          <!-- 评论事件渲染在时间线上 -->
-          <TimelineItem v-for="c in comments" :key="'c-' + c.id">
-            <template #badge>💬</template>
-            <div class="timeline__comment">
-              <div class="timeline__line">
-                <strong>{{ c.authorName }}</strong> 评论了
-                <span class="timeline__ago">{{ formatTime(c.createTime) }}</span>
-              </div>
-              <div class="comment-card comment-card--inline">
-                <div class="comment-card__body">
-                  <div class="md-body" v-html="renderMarkdown(c.body)"></div>
-                </div>
-              </div>
-            </div>
-          </TimelineItem>
+            <TimelineItem v-else>
+              <template #badge>
+                <PhChatCircle :size="14" />
+              </template>
+              <CommentCard
+                :author="node.comment.authorName"
+                :subtitle="timeAgo(node.comment.createTime)"
+                :body="node.comment.body"
+              />
+            </TimelineItem>
+          </template>
 
-          <div v-if="!timeline.length && !comments.length" class="empty-state">暂无活动</div>
-        </ul>
+          <div v-if="!nodes.length" class="empty-state">暂无活动</div>
+        </div>
 
-        <!-- 评论框 -->
+        <!-- 评论编辑器 -->
         <section class="composer">
           <h2 class="composer__title">添加评论</h2>
-          <div class="composer__box">
-            <div class="composer__head">
-              <div class="composer__tabs">
-                <button type="button" class="composer__tab" :class="{ active: composerTab === 'write' }" @click="composerTab = 'write'">编写</button>
-                <button type="button" class="composer__tab" :class="{ active: composerTab === 'preview' }" @click="composerTab = 'preview'">预览</button>
-              </div>
-            </div>
-            <textarea
-              v-if="composerTab === 'write'"
-              v-model="commentBody"
-              class="composer__input"
-              rows="6"
-              placeholder="支持 Markdown：## 标题、- [ ] 待办、**加粗**"
-            ></textarea>
-            <div v-else class="composer__preview md-body" v-html="previewHtml || '<p class=&quot;muted&quot;>暂无内容</p>'"></div>
-            <div class="composer__footer">
-              <span class="composer__hint"><PhPaperclip :size="14" /> 暂不支持附件</span>
-              <div class="composer__actions">
-                <button class="btn btn-default btn--sm" :disabled="busy" @click="submitComment">评论</button>
-              </div>
-            </div>
-          </div>
+          <CommentEditor
+            v-model="commentBody"
+            submit-text="评论"
+            :busy="busy"
+            @submit="submitComment"
+          >
+            <template #hint>支持 Markdown：## 标题、- [ ] 待办、**加粗**</template>
+          </CommentEditor>
         </section>
       </div>
 
-      <!-- 侧栏 -->
+      <!-- 侧栏（296px） -->
       <aside class="detail-side">
-        <div class="side-block">
-          <div class="side-block__title">负责人</div>
-          <div class="side-block__content">
-            <span v-if="task.assigneeName" class="side-user">
-              <span class="avatar avatar--sm">{{ task.assigneeName.charAt(0) }}</span>
-              {{ task.assigneeName }}
-            </span>
-            <span v-else class="side-empty">未指派</span>
-          </div>
-        </div>
+        <SidebarSection title="Assignees · 负责人">
+          <template #action><PhGearSix :size="14" /></template>
+          <span v-if="task.assigneeName" class="side-user">
+            <span class="avatar avatar--sm">{{ task.assigneeName.charAt(0) }}</span>
+            {{ task.assigneeName }}
+          </span>
+          <span v-else class="side-empty">未指派</span>
+        </SidebarSection>
 
-        <div class="side-block">
-          <div class="side-block__title">标签</div>
-          <div class="side-block__content side-block__content--wrap">
+        <SidebarSection title="Labels · 标签">
+          <template #action><PhGearSix :size="14" /></template>
+          <div class="side-tags">
             <span v-if="task.tag" class="tag" :class="TAG_CLASS[task.tag as TaskTag]">{{ task.tag }}</span>
             <span v-if="task.priority" class="tag" :class="PRIORITY_CLASS[task.priority as TaskPriority]">{{ task.priority }}优先级</span>
             <span v-if="!task.tag && !task.priority" class="side-empty">无</span>
           </div>
-        </div>
+        </SidebarSection>
 
-        <div class="side-block">
-          <div class="side-block__title">截止日期</div>
-          <div class="side-block__content">
-            <span v-if="task.dueDate">{{ task.dueDate }}</span>
-            <span v-else class="side-empty">未设置</span>
-          </div>
-        </div>
+        <SidebarSection title="Milestone · 截止日期">
+          <span v-if="task.dueDate">{{ task.dueDate }}</span>
+          <span v-else class="side-empty">未设置</span>
+        </SidebarSection>
 
-        <div class="side-block">
-          <div class="side-block__title">状态流转</div>
-          <div class="side-block__content side-block__content--col">
+        <SidebarSection title="状态流转">
+          <div class="side-actions">
             <button
               v-for="s in nextStatuses"
               :key="s.key"
@@ -282,13 +291,13 @@ function back() {
               @click="transit(s.key)"
             >标记为「{{ s.title }}」</button>
           </div>
-        </div>
+        </SidebarSection>
 
-        <div class="side-block side-block--danger">
+        <SidebarSection title="危险区">
           <button class="side-action side-action--danger" :disabled="busy" @click="remove">
             <PhTrash :size="13" /> 删除任务
           </button>
-        </div>
+        </SidebarSection>
       </aside>
     </div>
   </div>
@@ -374,52 +383,17 @@ function back() {
   color: var(--text-muted);
 }
 
-/* 评论/描述卡片 */
-.comment-card {
-  border: 1px solid var(--border-color);
-  border-radius: var(--radius-md);
-  background: var(--bg-card);
-  overflow: hidden;
-}
-.comment-card--inline { margin-top: 8px; }
-
-.comment-card__head {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 8px 16px;
-  background: var(--gray-50);
-  border-bottom: 1px solid var(--border-color);
-  font-size: var(--font-size-sm);
-  color: var(--text-muted);
-}
-.comment-card__head strong { color: var(--text-main); font-weight: 600; }
-
-.comment-card__body { padding: 16px; }
-.comment-card__empty {
-  color: var(--text-muted);
-  font-size: var(--font-size-md);
-}
-
 /* 时间线 */
 .timeline {
-  list-style: none;
-  margin: 0;
-  padding: 0;
   display: flex;
   flex-direction: column;
 }
-
-.timeline__line {
-  font-size: var(--font-size-md);
-  color: var(--text-regular);
-  line-height: 1.5;
+.timeline__ago {
+  color: var(--text-muted);
+  margin-left: 6px;
 }
-.timeline__line strong { color: var(--text-main); font-weight: 600; }
-.timeline__ago { color: var(--text-muted); margin-left: 6px; }
-.timeline__comment { display: flex; flex-direction: column; }
 
-/* 评论框 */
+/* 评论编辑器 */
 .composer { display: flex; flex-direction: column; gap: 8px; }
 .composer__title {
   font-size: var(--font-size-lg);
@@ -428,105 +402,10 @@ function back() {
   color: var(--text-main);
 }
 
-.composer__box {
-  border: 1px solid var(--border-strong);
-  border-radius: var(--radius-md);
-  background: var(--bg-card);
-  overflow: hidden;
-  transition: border-color var(--duration-fast) var(--ease-out), box-shadow var(--duration-fast) var(--ease-out);
-}
-.composer__box:focus-within {
-  border-color: var(--primary);
-  box-shadow: 0 0 0 3px color-mix(in srgb, var(--primary) 12%, transparent);
-}
-
-.composer__head {
-  padding: 6px 8px;
-  background: var(--gray-50);
-  border-bottom: 1px solid var(--border-color);
-}
-
-.composer__tabs {
-  display: inline-flex;
-  gap: 2px;
-  background: var(--gray-100);
-  border-radius: var(--radius-sm);
-  padding: 2px;
-}
-.composer__tab {
-  border: none;
-  background: transparent;
-  padding: 3px 10px;
-  font-size: var(--font-size-sm);
-  color: var(--text-muted);
-  border-radius: var(--radius-xs);
-  cursor: pointer;
-}
-.composer__tab.active {
-  background: var(--bg-card);
-  color: var(--text-main);
-  box-shadow: var(--shadow-xs);
-}
-
-.composer__input {
-  width: 100%;
-  border: none;
-  outline: none;
-  resize: vertical;
-  padding: 12px;
-  font-family: inherit;
-  font-size: var(--font-size-base);
-  line-height: 1.6;
-  color: var(--text-main);
-  background: var(--bg-card);
-  min-height: 140px;
-}
-
-.composer__preview {
-  padding: 12px;
-  min-height: 140px;
-}
-
-.composer__footer {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 8px 12px;
-  border-top: 1px solid var(--border-color);
-  background: var(--gray-50);
-}
-.composer__hint {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  font-size: var(--font-size-sm);
-  color: var(--text-muted);
-}
-
 /* 侧栏 */
 .detail-side {
-  display: flex;
-  flex-direction: column;
-  gap: var(--spacing-lg);
   padding-top: 2px;
 }
-
-.side-block {
-  padding-bottom: var(--spacing-md);
-  border-bottom: 1px solid var(--border-color-light);
-}
-.side-block:last-child { border-bottom: none; padding-bottom: 0; }
-
-.side-block__title {
-  font-size: var(--font-size-sm);
-  font-weight: 600;
-  color: var(--text-muted);
-  margin-bottom: 8px;
-}
-
-.side-block__content { font-size: var(--font-size-md); color: var(--text-main); }
-.side-block__content--wrap { display: flex; flex-wrap: wrap; gap: 4px; }
-.side-block__content--col { display: flex; flex-direction: column; gap: 6px; }
 
 .side-user {
   display: inline-flex;
@@ -534,7 +413,19 @@ function back() {
   gap: 6px;
 }
 
+.side-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
 .side-empty { color: var(--text-muted); font-size: var(--font-size-sm); }
+
+.side-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
 
 .side-action {
   width: 100%;
@@ -555,7 +446,6 @@ function back() {
 }
 .side-action:disabled { opacity: 0.5; cursor: not-allowed; }
 
-.side-block--danger { border-bottom: none; }
 .side-action--danger {
   display: inline-flex;
   align-items: center;

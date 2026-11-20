@@ -20,3 +20,9 @@ export const THEME_STORAGE_KEY = 'team_theme';
 
 /** 主题缺省值：深色（GitHub Dark 令牌为基线，浅色为可选切换） */
 export const THEME_DEFAULT: 'light' | 'dark' = 'dark';
+
+/** 系统用户标配角色 id（sys_role.role_code=test，全员最小权限，新用户默认分配） */
+export const DEFAULT_ROLE_ID = 'ee8626f80f7c2619917b6236f3a7f02b';
+
+/** 业务主管角色 id（sys_role.role_code=team_manager，team 域审批/审计/邮件日志管理） */
+export const MANAGER_ROLE_ID = 'b7e3d1a2c4f548e6a9b0d3e5f7a1c8d2';

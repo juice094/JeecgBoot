@@ -10,6 +10,7 @@ import org.jeecg.common.api.CommonAPI;
 import org.jeecg.common.aspect.annotation.PermissionData;
 import org.jeecg.common.constant.CommonConstant;
 import org.jeecg.common.constant.SymbolConstant;
+import org.jeecg.common.exception.JeecgBootException;
 import org.jeecg.common.system.query.QueryRuleEnum;
 import org.jeecg.common.system.util.JeecgDataAutorUtils;
 import org.jeecg.common.system.util.JwtUtil;
@@ -41,6 +42,12 @@ public class PermissionDataAspect {
     private CommonAPI commonApi;
 
     private static final String SPOT_DO = ".do";
+
+    /**
+     * 数据权限 fail-closed 开关：false=告警模式（存量行为，放行并记警告）；true=规则缺失即拒绝
+     */
+    @org.springframework.beans.factory.annotation.Value("${jeecg.permission.dataRule.strict:false}")
+    private boolean dataRuleStrict;
 
     @Pointcut("@annotation(org.jeecg.common.aspect.annotation.PermissionData)")
     public void pointCut() {
@@ -76,6 +83,15 @@ public class PermissionDataAspect {
             //TODO 微服务情况下也得支持缓存机制
             SysUserCacheInfo userinfo = commonApi.getCacheUser(username);
             JeecgDataAutorUtils.installUserInfo(request, userinfo);
+        } else {
+            // ============ 确权治理层：注解存在但规则为空的默认姿态 ============
+            // 未开启 strict 时保持存量行为（放行）并告警，用于收集受影响接口清单；
+            // 开启后按 fail-closed 拒绝。见 PERMISSION-GOVERNANCE.md §9。
+            if (dataRuleStrict) {
+                log.warn("【数据权限】规则缺失，拒绝访问: path={}, user={}", requestPath, username);
+                throw new JeecgBootException("数据权限规则缺失，拒绝访问: " + requestPath);
+            }
+            log.warn("【数据权限告警】注解存在但规则为空（strict 未开启，已放行）: path={}, user={}", requestPath, username);
         }
         return  point.proceed();
     }

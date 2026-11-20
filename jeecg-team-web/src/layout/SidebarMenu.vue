@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import {computed, type Component} from 'vue';
+import {computed, onBeforeUnmount, onMounted, type Component} from 'vue';
 import {useRoute, useRouter} from 'vue-router';
 
 import {
@@ -23,6 +23,8 @@ import {
   PhCaretRight,
 } from '@phosphor-icons/vue';
 import {useWorkbenchStore} from '@/stores/workbench';
+import {useBadgeStore} from '@/stores/badges';
+import {hasPermission} from '@/utils/permission';
 
 const route = useRoute();
 const router = useRouter();
@@ -33,7 +35,6 @@ interface MenuChild {
   path: string;
   owner: string;
   icon: string;
-  badge?: number;
 }
 
 interface MenuGroup {
@@ -61,6 +62,7 @@ const MENU_ICONS: Record<string, Component> = {
 };
 
 // 侧栏从路由派生，禁止在这里硬编码菜单项（docs/13 §二.5，issue #11）
+// meta.perm 过滤：无权限码的菜单项不渲染；权限码未加载时 hasPermission 兜底放行（渐进增强）
 const menus = computed<MenuGroup[]>(() => {
   const children = router.options.routes.find((r) => r.path === '/')?.children ?? [];
   const groups = new Map<string, MenuChild[]>();
@@ -70,20 +72,30 @@ const menus = computed<MenuGroup[]>(() => {
       owner?: string;
       group?: string;
       icon?: string;
-      badge?: number
+      perm?: string;
     } | undefined;
     if (!meta?.group || !child.path) continue;
+    if (meta.perm && !hasPermission(meta.perm)) continue;
     if (!groups.has(meta.group)) groups.set(meta.group, []);
     groups.get(meta.group)!.push({
       title: meta.title ?? child.path,
       path: `/${child.path}`,
       owner: meta.owner ?? '',
       icon: meta.icon ?? '',
-      badge: meta.badge,
     });
   }
-  return [...groups.entries()].map(([title, items]) => ({title, children: items}));
+  return [...groups.entries()]
+    .map(([title, items]) => ({title, children: items}))
+    .filter((g) => g.children.length > 0);
 });
+
+// 角标真实计数来自 badgeStore（原 meta.badge 硬编码占位已移除）；按路由 path 关联
+const badges = useBadgeStore();
+const badgeFor = (path: string): number =>
+  path === '/tools/approval' ? badges.approvalTodo : path === '/tools/email' ? badges.mailUnread : 0;
+
+onMounted(() => badges.startPolling());
+onBeforeUnmount(() => badges.stopPolling());
 
 const isActive = (path: string) => route.path === path;
 
@@ -117,7 +129,7 @@ function switchMode(mode: 'tool' | 'chat') {
         >
           <component :is="MENU_ICONS[item.icon] ?? PhSquaresFour" :size="18" class="menu-item__icon"/>
           <span v-if="!workbench.sidebarCollapsed" class="menu-item__text">{{ item.title }}</span>
-          <span v-if="item.badge && !workbench.sidebarCollapsed" class="menu-badge">{{ item.badge }}</span>
+          <span v-if="badgeFor(item.path) && !workbench.sidebarCollapsed" class="menu-badge">{{ badgeFor(item.path) }}</span>
         </router-link>
       </div>
     </nav>

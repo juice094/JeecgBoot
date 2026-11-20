@@ -58,9 +58,18 @@ onMounted(async () => {
 
 const ITEM_ICONS = [PhFileText, PhCurrencyCircleDollar, PhMegaphone];
 
-const STATUS_TEXT: Record<Approval['status'], string> = { pending: '审批中', approved: '已通过', rejected: '已拒绝' };
-const STATUS_CLS: Record<Approval['status'], string> = { pending: 'tag--warning', approved: 'tag--success', rejected: 'tag--danger' };
-const STATUS_SYMBOL: Record<Approval['status'], string> = { pending: '○', approved: '✓', rejected: '✕' };
+const STATUS_TEXT: Record<Approval['status'], string> = {
+  draft: '草稿', pending: '审批中', returned: '已退回',
+  approved: '已通过', rejected: '已拒绝', canceled: '已撤销',
+};
+const STATUS_CLS: Record<Approval['status'], string> = {
+  draft: 'tag--neutral', pending: 'tag--warning', returned: 'tag--info',
+  approved: 'tag--success', rejected: 'tag--danger', canceled: 'tag--neutral',
+};
+const STATUS_SYMBOL: Record<Approval['status'], string> = {
+  draft: '·', pending: '○', returned: '↩',
+  approved: '✓', rejected: '✕', canceled: '—',
+};
 </script>
 
 <template>

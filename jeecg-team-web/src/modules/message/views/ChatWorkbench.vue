@@ -328,6 +328,22 @@ function onQuickFormSubmit(msgId: string, payload: { title: string; summary: str
   border-right: 1px solid var(--border-color);
   overflow-y: auto;
 }
+
+@media (max-width: 900px) {
+  .chat__list {
+    width: 200px;
+  }
+}
+
+@media (max-width: 640px) {
+  .chat__list {
+    width: 64px;
+  }
+  .conv__body,
+  .chat__list-search {
+    display: none;
+  }
+}
 .chat__list-search {
   padding: 10px;
   border-bottom: 1px solid var(--border-color-light);
@@ -513,6 +529,7 @@ function onQuickFormSubmit(msgId: string, payload: { title: string; summary: str
 .chat__toolbar {
   display: flex;
   align-items: center;
+  flex-wrap: wrap;
   gap: 8px;
 }
 .chat__toolbar button {
@@ -532,6 +549,11 @@ function onQuickFormSubmit(msgId: string, payload: { title: string; summary: str
   font-size: var(--font-size-xs);
   color: var(--text-muted);
   margin-left: 4px;
+  flex: 1;
+  min-width: 140px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 .chat__hint code {
   background: var(--bg-body);

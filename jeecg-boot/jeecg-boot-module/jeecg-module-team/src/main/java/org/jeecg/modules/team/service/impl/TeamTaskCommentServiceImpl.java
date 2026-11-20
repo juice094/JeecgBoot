@@ -12,8 +12,8 @@ import org.jeecg.modules.team.entity.TeamTaskComment;
 import org.jeecg.modules.team.enums.TeamAuditAction;
 import org.jeecg.modules.team.enums.TeamAuditBizType;
 import org.jeecg.modules.team.mapper.TeamTaskCommentMapper;
+import org.jeecg.modules.team.mapper.TeamTaskMapper;
 import org.jeecg.modules.team.service.ITeamTaskCommentService;
-import org.jeecg.modules.team.service.ITeamTaskService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -35,7 +35,7 @@ public class TeamTaskCommentServiceImpl extends ServiceImpl<TeamTaskCommentMappe
     private static final int MAX_BODY_LENGTH = 10000;
 
     @Autowired
-    private ITeamTaskService teamTaskService;
+    private TeamTaskMapper teamTaskMapper;
 
     @Autowired
     private TeamAuditLogger auditLogger;
@@ -64,7 +64,7 @@ public class TeamTaskCommentServiceImpl extends ServiceImpl<TeamTaskCommentMappe
             throw new JeecgBootException("评论内容过长（上限 " + MAX_BODY_LENGTH + " 字符）");
         }
 
-        TeamTask task = teamTaskService.getById(taskId);
+        TeamTask task = teamTaskMapper.selectById(taskId);
         if (task == null) {
             throw new JeecgBootException("任务不存在: id=" + taskId);
         }

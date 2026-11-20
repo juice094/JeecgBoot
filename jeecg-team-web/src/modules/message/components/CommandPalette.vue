@@ -70,7 +70,7 @@ defineExpose({
   background: var(--bg-card);
   border: 1px solid var(--border-color);
   border-radius: var(--radius-md);
-  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.12);
+  box-shadow: var(--shadow-popover);
   overflow: hidden;
   z-index: 20;
   max-height: 320px;

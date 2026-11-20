@@ -25,6 +25,10 @@ watch(
 );
 
 const isChatMode = computed(() => workbench.mode === 'chat');
+
+// 上下定格页（route.meta.fullHeight）：容器吃满窗口，页面内部自管滚动（如工作邮箱三栏）。
+// 与 --chat 同思路，但保留内容区内边距与宽度约束。
+const isFullHeight = computed(() => route.meta.fullHeight === true);
 </script>
 
 <template>
@@ -32,7 +36,7 @@ const isChatMode = computed(() => workbench.mode === 'chat');
     <SidebarMenu />
     <div class="app-layout__main">
       <TopHeader />
-      <main class="app-layout__content" :class="{ 'app-layout__content--chat': isChatMode }">
+      <main class="app-layout__content" :class="{ 'app-layout__content--chat': isChatMode, 'app-layout__content--pinned': isFullHeight }">
         <ChatWorkbench v-if="isChatMode" />
         <div v-else class="app-layout__inner">
           <router-view v-slot="{ Component }">
@@ -64,6 +68,12 @@ const isChatMode = computed(() => workbench.mode === 'chat');
   padding: 24px;
 }
 
+@media (max-width: 768px) {
+  .app-layout__content {
+    padding: 16px;
+  }
+}
+
 /* 内容宽度约束：超宽屏下避免信息被拉散，居中留白 */
 .app-layout__inner {
   max-width: var(--content-max-width);
@@ -75,6 +85,27 @@ const isChatMode = computed(() => workbench.mode === 'chat');
   padding: 0;
   overflow: hidden;
   display: flex;
+}
+
+/* 上下定格模式：视口高度内闭环，滚动交给页面内部（dsh 号池同款口径） */
+.app-layout__content--pinned {
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.app-layout__content--pinned .app-layout__inner {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+}
+
+/* 页面组件根节点撑满定格容器（router-view 直接子级） */
+.app-layout__content--pinned .app-layout__inner > * {
+  flex: 1;
+  min-height: 0;
 }
 
 .page-fade {

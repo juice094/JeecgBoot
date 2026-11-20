@@ -1,12 +1,20 @@
 <script setup lang="ts">
 // 审批中心（工具组）—— owner: juice094
-// 数据：/team/approval/list 真实接口；tab=待办(pending)/已办(approved+rejected)/我发起的(applicantId=本人)
-import { onMounted, reactive, ref, watch } from 'vue';
+// tab 口径：待我审批（/todo）｜我已审批（approverId=本人）｜我发起的（applicantId=本人）
+// 状态六态：draft/pending/returned/approved/rejected/canceled
+import { computed, onMounted, reactive, ref, watch } from 'vue';
 import { useAuthStore } from '@/stores/auth';
+import { usePermission } from '@/utils/permission';
 import {
-  listApprovals, listApprovalTodos, approveApproval, rejectApproval, fetchApprovalSteps,
+  listApprovals, listApprovalTodos, approveApproval, rejectApproval,
+  returnApproval, cancelApproval, resubmitApproval, fetchApprovalSteps,
   type Approval, type ApprovalStep,
 } from '@/api/team';
+
+// 审批动作权限（权限码已剥离到"业务主管"角色；未加载时 hasPermission 兜底放行）
+const { hasPermission } = usePermission();
+const canApproveAction = hasPermission('team:approval:approve');
+const canRejectAction = hasPermission('team:approval:reject');
 
 type Tab = 'todo' | 'done' | 'mine';
 const activeTab = ref<Tab>('todo');
@@ -28,19 +36,19 @@ async function load() {
   errorMsg.value = '';
   try {
     if (activeTab.value === 'todo') {
-      // 待我审批：后端两步走（wait 步骤按登录人姓名 + pending/currentStep 匹配），与守卫口径一致
       const data = await listApprovalTodos({ pageNo: 1, pageSize: 50 });
       rows.value = data.result.records;
       return;
     }
+    // 我已审批 / 我发起的：都走 /list，分别按 approverId / applicantId 过滤（服务端过滤，不再本地 filter）
     const params: Record<string, unknown> = { pageNo: 1, pageSize: 50 };
+    if (activeTab.value === 'done') params.approverId = auth.userInfo.id;
     if (activeTab.value === 'mine') params.applicantId = auth.userInfo.id;
     const data = await listApprovals(params);
-    let list = data.result.records;
-    if (activeTab.value === 'done') list = list.filter((r) => r.status !== 'pending');
-    rows.value = list;
+    rows.value = data.result.records;
   } catch (e: any) {
     errorMsg.value = e.message || '加载失败';
+    rows.value = [];
   } finally {
     loading.value = false;
   }
@@ -49,43 +57,76 @@ async function load() {
 watch(activeTab, load);
 onMounted(load);
 
-async function approve(row: Approval) {
+/** 统一操作包装：置忙、清错、成功后重载 */
+async function runAction(row: Approval, action: () => Promise<unknown>, failText: string) {
   busyId.value = row.id;
+  errorMsg.value = '';
   try {
-    await approveApproval(row.id);
+    await action();
     await load();
   } catch (e: any) {
-    errorMsg.value = e.message || '操作失败';
+    errorMsg.value = e.message || failText;
   } finally {
     busyId.value = '';
   }
 }
 
-async function reject(row: Approval) {
+function approve(row: Approval) {
+  return runAction(row, () => approveApproval(row.id), '操作失败');
+}
+
+function reject(row: Approval) {
   const comment = window.prompt('拒绝理由（可空）') ?? '';
-  busyId.value = row.id;
-  try {
-    await rejectApproval(row.id, comment || undefined);
-    await load();
-  } catch (e: any) {
-    errorMsg.value = e.message || '操作失败';
-  } finally {
-    busyId.value = '';
-  }
+  return runAction(row, () => rejectApproval(row.id, comment || undefined), '操作失败');
 }
 
+function returnToApplicant(row: Approval) {
+  const comment = window.prompt('退回说明（可空）') ?? '';
+  return runAction(row, () => returnApproval(row.id, comment || undefined), '操作失败');
+}
+
+function cancel(row: Approval) {
+  if (!window.confirm(`确认撤回单据 ${row.code}？撤回后不可恢复。`)) return;
+  return runAction(row, () => cancelApproval(row.id), '撤回失败');
+}
+
+function resubmit(row: Approval) {
+  if (!window.confirm(`确认重提单据 ${row.code}？将按当前模板重建审批链。`)) return;
+  return runAction(row, () => resubmitApproval(row.id), '重提失败');
+}
+
+// ---- 状态标签（六态全覆盖，避免 undefined.cls 抛异常） ----
 const STATUS_TAG: Record<Approval['status'], { text: string; cls: string }> = {
+  draft: { text: '草稿', cls: 'tag-neutral' },
   pending: { text: '审批中', cls: 'tag-warning' },
+  returned: { text: '已退回', cls: 'tag-info' },
   approved: { text: '已通过', cls: 'tag-success' },
   rejected: { text: '已拒绝', cls: 'tag-danger' },
+  canceled: { text: '已撤销', cls: 'tag-neutral' },
 };
+
+function statusTag(s: string) {
+  return STATUS_TAG[s as Approval['status']] ?? { text: s, cls: 'tag-neutral' };
+}
+
+// ---- 按钮可见性（状态 × tab 矩阵） ----
+const canApprove = (row: Approval) => activeTab.value === 'todo' && row.status === 'pending';
+const canCancel = (row: Approval) => activeTab.value === 'mine' && row.status === 'pending';
+const canResubmit = (row: Approval) => activeTab.value === 'mine' && row.status === 'returned';
+const hasActions = (row: Approval) => canApprove(row) || canCancel(row) || canResubmit(row);
 
 // ---- 审批步骤时间线（行内展开，懒加载 + 缓存） ----
 const STEP_ACTION: Record<ApprovalStep['action'], { text: string; cls: string }> = {
   wait: { text: '待审批', cls: 'tag-info' },
   approved: { text: '已通过', cls: 'tag-success' },
   rejected: { text: '已拒绝', cls: 'tag-danger' },
+  returned: { text: '已退回', cls: 'tag-warning' },
 };
+
+function stepAction(s: string) {
+  return STEP_ACTION[s as ApprovalStep['action']] ?? { text: s, cls: 'tag-neutral' };
+}
+
 const expandedId = ref('');
 const stepsCache = reactive<Record<string, ApprovalStep[]>>({});
 const stepsLoading = ref('');
@@ -143,11 +184,18 @@ async function toggleSteps(row: Approval) {
               </span>
             </td>
             <td>{{ row.createTime || '-' }}</td>
-            <td><span class="tag" :class="STATUS_TAG[row.status].cls">{{ STATUS_TAG[row.status].text }}</span></td>
+            <td><span class="tag" :class="statusTag(row.status).cls">{{ statusTag(row.status).text }}</span></td>
             <td>
-              <template v-if="row.status === 'pending' && activeTab !== 'mine'">
-                <button class="btn btn-primary btn--sm" :disabled="busyId === row.id" @click="approve(row)">通过</button>
-                <button class="btn btn--sm btn--danger" :disabled="busyId === row.id" @click="reject(row)">拒绝</button>
+              <template v-if="canApprove(row)">
+                <button v-if="canApproveAction" class="btn btn-primary btn--sm" :disabled="busyId === row.id" @click="approve(row)">通过</button>
+                <button v-if="canRejectAction" class="btn btn--sm btn--danger" :disabled="busyId === row.id" @click="reject(row)">拒绝</button>
+                <button v-if="canRejectAction" class="btn btn--sm" :disabled="busyId === row.id" @click="returnToApplicant(row)">退回</button>
+              </template>
+              <template v-else-if="canCancel(row)">
+                <button class="btn btn--sm btn--danger" :disabled="busyId === row.id" @click="cancel(row)">撤回</button>
+              </template>
+              <template v-else-if="canResubmit(row)">
+                <button class="btn btn-primary btn--sm" :disabled="busyId === row.id" @click="resubmit(row)">重提</button>
               </template>
               <span v-else style="color: var(--text-muted); font-size: 12px">—</span>
             </td>
@@ -159,7 +207,7 @@ async function toggleSteps(row: Approval) {
                 <div v-for="step in stepsCache[expandedId]" :key="step.id" class="step-item">
                   <span class="step-no">{{ step.stepNo }}</span>
                   <span class="step-approver">{{ step.approverName }}<span v-if="step.approverRole" class="step-role">（{{ step.approverRole }}）</span></span>
-                  <span class="tag" :class="STEP_ACTION[step.action].cls">{{ STEP_ACTION[step.action].text }}</span>
+                  <span class="tag" :class="stepAction(step.action).cls">{{ stepAction(step.action).text }}</span>
                   <span v-if="step.comment" class="step-comment">“{{ step.comment }}”</span>
                   <span class="step-time">{{ step.actedAt || '' }}</span>
                 </div>

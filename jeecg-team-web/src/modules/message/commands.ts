@@ -3,7 +3,7 @@
 // 两种动作：
 //   navigate — 切到工具工作台并跳转对应页面（路由 watcher 自动切模式）
 //   form     — 在会话内插入一张快捷表单卡（提交后走对应 API，见 QuickFormCard）
-import type { FunctionalComponent } from 'vue';
+import type { Component } from 'vue';
 import {
   PhNotePencil,
   PhCheckSquareOffset,
@@ -23,7 +23,7 @@ export interface ChatCommand {
   /** 展示名（如 日常申请） */
   title: string;
   description: string;
-  icon: FunctionalComponent;
+  icon: Component;
   action: CommandAction;
   /** 命令面板的示例语 */
   example?: string;

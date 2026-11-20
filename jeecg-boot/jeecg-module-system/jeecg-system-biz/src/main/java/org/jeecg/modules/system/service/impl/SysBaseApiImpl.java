@@ -125,6 +125,13 @@ public class SysBaseApiImpl implements ISysBaseAPI {
 	private SysUserMapper userMapper;
 	@Resource
 	private SysUserRoleMapper sysUserRoleMapper;
+	@Resource
+	private SysPermissionGrantMapper sysPermissionGrantMapper;
+	/**
+	 * 确权读路径开关：默认关闭，行为与存量完全一致；开启后并入有效授权关系
+	 */
+	@Value("${jeecg.permission.grant.enabled:false}")
+	private boolean permissionGrantEnabled;
 	@Autowired
 	private ISysDepartService sysDepartService;
 	@Autowired
@@ -1278,6 +1285,21 @@ public class SysBaseApiImpl implements ISysBaseAPI {
 				permissionSet.add(po.getPerms());
 			}
 		}
+		//================= begin 确权治理层：并入有效授权关系（开关控制）=================
+		if (permissionGrantEnabled) {
+			List<String> grants = sysPermissionGrantMapper.selectActiveGrantedPerms(userId);
+			int grantedSize = 0;
+			if (grants != null) {
+				for (String perm : grants) {
+					if (oConvertUtils.isNotEmpty(perm)) {
+						permissionSet.add(perm);
+						grantedSize++;
+					}
+				}
+			}
+			log.info("-------并入确权授予权限------userId: {}, granted size: {}", userId, grantedSize);
+		}
+		//================= end 确权治理层 =================
 		log.debug("-------通过数据库读取用户拥有的权限Perms------userId： "+ userId+",Perms size: "+ (permissionSet==null?0:permissionSet.size()) );
 		return permissionSet;
 	}
