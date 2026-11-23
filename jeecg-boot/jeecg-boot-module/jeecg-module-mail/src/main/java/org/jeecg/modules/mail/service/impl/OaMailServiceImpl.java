@@ -1,5 +1,6 @@
 package org.jeecg.modules.mail.service.impl;
 
+import java.time.Duration;
 import java.util.Date;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -11,6 +12,7 @@ import jakarta.mail.internet.MimeMessage;
 import org.apache.commons.lang3.StringUtils;
 import org.jeecg.common.exception.JeecgBootException;
 import org.jeecg.common.log.EventLoggers;
+import org.jeecg.modules.mail.constant.MailRedisConstants;
 import org.jeecg.modules.mail.delivery.ImapSmtpConnector;
 import org.jeecg.modules.mail.delivery.MailConnectFailedException;
 import org.jeecg.modules.mail.dto.ConnectionTestResult;
@@ -37,6 +39,8 @@ import org.jeecg.modules.mail.sync.MailSyncTracker;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.redis.RedisConnectionFailureException;
+import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -92,6 +96,9 @@ public class OaMailServiceImpl extends ServiceImpl<OaMailAccountMapper, OaMailAc
 
     @Autowired
     private OaMailOwnershipGuard ownershipGuard;
+
+    @Autowired
+    private StringRedisTemplate stringRedisTemplate;
 
     @Autowired
     private MailMessageOperator operator;
@@ -380,6 +387,9 @@ public class OaMailServiceImpl extends ServiceImpl<OaMailAccountMapper, OaMailAc
         }
         OaMailAccount account = getAndCheckOwnership(req.getAccountId());
 
+        // 幂等占位（D-20261119-87 ①）：幂等键为空跳过检查直接发送（不强制）；Redis 挂 fail-fast 拒绝发送
+        acquireSendIdempotencySlot(req, account.getId());
+
         long sendStart = System.currentTimeMillis();
         jakarta.mail.Session session = connector.buildSmtpSession(toSmtpConfig(account));
         MimeMessage message;
@@ -421,6 +431,37 @@ public class OaMailServiceImpl extends ServiceImpl<OaMailAccountMapper, OaMailAc
     }
 
     // ---------- 内部 ----------
+
+    /**
+     * 写信幂等占位（D-20261119-87 ①）：Redis incr + TTL 24h。
+     *
+     * key 口径：mail:idem:send:{accountId}:{幂等键 SHA-256 指纹}——幂等键为前端按
+     * 「收件人+主题+正文」生成的内容摘要（契约字段），服务端只哈希不落原文；
+     * incr 首次返回 1 并设 TTL，同 key 24h 内重复提交返回 &gt;1 即拒绝发送，保证只发一次。
+     * 幂等键为空：跳过检查直接发送（决策默认值，不强制）。
+     * Redis 不可用：fail-fast 抛业务异常拒绝发送，绝不降级为"不幂等继续发"。
+     */
+    private void acquireSendIdempotencySlot(SendMailMessageReqDTO req, String accountId) {
+        if (StringUtils.isBlank(req.getIdempotencyKey())) {
+            return;
+        }
+        String key = MailRedisConstants.SEND_IDEMPOTENT_KEY_PREFIX + accountId + ":"
+                + MailDigests.toHash8(req.getIdempotencyKey());
+        Long seq;
+        try {
+            seq = stringRedisTemplate.opsForValue().increment(key);
+            if (seq != null && seq.longValue() == 1L) {
+                stringRedisTemplate.expire(key, Duration.ofSeconds(MailRedisConstants.SEND_IDEMPOTENT_TTL_SECONDS));
+            }
+        } catch (RedisConnectionFailureException e) {
+            // Redis 连接异常单独捕获转业务异常：fail-fast，避免同一邮件被重复投递
+            throw new JeecgBootException("邮件发送失败：幂等检查不可用（Redis 连接失败），请稍后重试", e);
+        }
+        if (seq != null && seq.longValue() > 1L) {
+            log.info("[mail] 写信幂等命中，拒绝重复提交 accountId={} key={}", accountId, key);
+            throw new JeecgBootException("重复提交：相同邮件已在 24 小时内提交过，请勿重发");
+        }
+    }
 
     private OaMailMessageIndex requireIndexRow(String id) {
         if (StringUtils.isBlank(id)) {
