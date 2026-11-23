@@ -5,7 +5,7 @@
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import {
-  PhArrowLeft, PhArrowCounterClockwise, PhArrowsLeftRight, PhChatCircle, PhCheckCircle, PhGearSix, PhPlus, PhPlusCircle, PhTrash, PhX, PhXCircle,
+  PhArrowLeft, PhArrowCounterClockwise, PhChatCircle, PhGearSix, PhPlus, PhTrash, PhX,
 } from '@phosphor-icons/vue';
 import {
   fetchTaskDetail, addTaskComment, changeTaskStatus, deleteTask, editTask, listLabels,
@@ -14,6 +14,7 @@ import {
 } from '@/api/team';
 import { timeAgo } from '@/utils/time';
 import { TASK_STATUSES, TAG_CLASS, PRIORITY_CLASS, type TaskTag, type TaskPriority, type TaskStatusKey } from '@/constants/task';
+import { EVENT_ACTION_META, EVENT_ACTION_FALLBACK_COLOR } from '@/constants/taskEventAction';
 import { usePermission } from '@/utils/permission';
 import StatusBadge from '@/components/StatusBadge.vue';
 import TimelineItem from '@/components/TimelineItem.vue';
@@ -74,29 +75,18 @@ const taskLabel = computed(() => {
   return '#' + t.id.slice(0, 7);
 });
 
-/** 事件动作 → 文案 / 图标 / 动作着色（对齐 GitHub 时间线「动作着色」呈现） */
-const ACTION_META: Record<string, { text: string; color: string; icon: unknown }> = {
-  create: { text: '创建了此任务', color: 'var(--success)', icon: PhPlusCircle },
-  submit: { text: '提交了任务', color: 'var(--info)', icon: PhArrowCounterClockwise },
-  change_status: { text: '变更了状态', color: 'var(--primary)', icon: PhArrowsLeftRight },
-  approve: { text: '通过了审批', color: 'var(--success)', icon: PhCheckCircle },
-  reject: { text: '拒绝了审批', color: 'var(--danger)', icon: PhXCircle },
-  return: { text: '退回了任务', color: 'var(--warning)', icon: PhArrowCounterClockwise },
-  cancel: { text: '撤销了任务', color: 'var(--gray-500)', icon: PhXCircle },
-  resubmit: { text: '重提了任务', color: 'var(--info)', icon: PhArrowCounterClockwise },
-};
-
+/** 事件动作 → 文案 / 图标 / 动作着色（映射表已抽公共常量 constants/taskEventAction，本页与事件流页共用） */
 function eventText(ev: TaskEvent): string {
-  return ACTION_META[ev.action]?.text || ev.action;
+  return EVENT_ACTION_META[ev.action]?.text || ev.action;
 }
 
 /** 事件动作 → 徽章图标与着色 */
 function eventIcon(ev: TaskEvent): unknown {
-  return ACTION_META[ev.action]?.icon || PhArrowCounterClockwise;
+  return EVENT_ACTION_META[ev.action]?.icon || PhArrowCounterClockwise;
 }
 
 function eventColor(ev: TaskEvent): string {
-  return ACTION_META[ev.action]?.color || 'var(--text-muted)';
+  return EVENT_ACTION_META[ev.action]?.color || EVENT_ACTION_FALLBACK_COLOR;
 }
 
 /** 状态码 → 胶囊样式类（时间线 from→to 着色） */

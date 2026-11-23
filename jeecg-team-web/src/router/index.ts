@@ -68,6 +68,12 @@ export const layoutChildren: RouteRecordRaw[] = [
     meta: { title: '数据日志', group: '管理', icon: 'logs' },
   },
   {
+    path: 'admin/monitor/events',
+    name: 'MonitorEventStream',
+    component: () => import('@/modules/business/views/monitor/MonitorEventStream.vue'),
+    meta: { title: '业务事件流', group: '管理', icon: 'events', perm: 'team:task:list' },
+  },
+  {
     path: 'tools/request',
     name: 'RequestForm',
     component: () => import('@/modules/business/views/RequestForm.vue'),
