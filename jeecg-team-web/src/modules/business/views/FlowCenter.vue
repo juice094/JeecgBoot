@@ -1,7 +1,7 @@
 <script setup lang="ts">
 // 流程中心（工具组）—— owner: juice094
 // tab 口径：发起流程（/flow/process/list 定义清单 + 动态表单）｜我的待办（/flow/approve/todo）｜我的已办（/flow/approve/done）
-// 契约源：FlowProcessController（W2）；请假发起走 /flow/demo/leave/start（W1 冒烟端点，W2 未覆盖，见 api/flow.ts 注）
+// 契约源：FlowProcessController（W2）；发起统一走 /flow/process/start（D-94：processKey=expense|leave）
 // 校验口径与后端 FlowExpenseService / FlowLeaveService 一致：金额 >0、≤100万、≤2 位小数；事由必填 ≤500 字；
 // 附件说明 ≤500 字；办理人必填；请假天数整数 1-365。
 import { computed, onMounted, reactive, ref, watch } from 'vue';

@@ -8,11 +8,12 @@ import {
   PhArrowLeft, PhArrowCounterClockwise, PhArrowsLeftRight, PhChatCircle, PhCheckCircle, PhGearSix, PhPlusCircle, PhTrash, PhXCircle,
 } from '@phosphor-icons/vue';
 import {
-  fetchTaskDetail, addTaskComment, changeTaskStatus, deleteTask,
-  type Task, type TaskComment, type TaskEvent,
+  fetchTaskDetail, addTaskComment, changeTaskStatus, deleteTask, editTask, listLabels,
+  type Task, type TaskComment, type TaskEvent, type TeamLabel,
 } from '@/api/team';
 import { timeAgo } from '@/utils/time';
 import { TASK_STATUSES, TAG_CLASS, PRIORITY_CLASS, type TaskTag, type TaskPriority, type TaskStatusKey } from '@/constants/task';
+import { usePermission } from '@/utils/permission';
 import StatusBadge from '@/components/StatusBadge.vue';
 import TimelineItem from '@/components/TimelineItem.vue';
 import TimelineEvent from '@/components/TimelineEvent.vue';
@@ -22,6 +23,9 @@ import SidebarSection from '@/components/SidebarSection.vue';
 
 const route = useRoute();
 const router = useRouter();
+const { hasPermission } = usePermission();
+// 标签挂载走编辑权限（与 /issues 批量指派/行内改派同口径）
+const canEditLabels = hasPermission('team:task:edit');
 const taskId = computed(() => String(route.params.id || ''));
 
 const task = ref<Task | null>(null);
@@ -188,6 +192,50 @@ async function remove() {
 function back() {
   router.push('/tools/taskboard');
 }
+
+// ---- 标签挂载（team_label 库 + 任务行内嵌 labels，编辑权限细控） ----
+const labelLib = ref<TeamLabel[]>([]);
+const labelPickerOpen = ref(false);
+
+/** 当前任务已挂载标签名集合（行内嵌 labels 优先，历史行回退单值 tag） */
+const mountedLabelNames = computed(() => {
+  if (task.value?.labels?.length) return task.value.labels.map((l) => l.name);
+  return task.value?.tag ? [task.value.tag] : [];
+});
+
+async function openLabelPicker() {
+  labelPickerOpen.value = !labelPickerOpen.value;
+  if (labelPickerOpen.value && !labelLib.value.length) {
+    try {
+      const data = await listLabels({ pageNo: 1, pageSize: 100 });
+      labelLib.value = data.result?.records || [];
+    } catch {
+      // 标签库加载失败：挂载面板退化为空，不阻塞详情
+    }
+  }
+}
+
+/** 勾选切换挂载。契约未单列挂载端点，走任务编辑携带 labels 数组（后端 agent 同契约对齐） */
+async function toggleLabel(lb: TeamLabel) {
+  if (!task.value || busy.value) return;
+  const names = new Set(mountedLabelNames.value);
+  if (names.has(lb.name)) names.delete(lb.name);
+  else names.add(lb.name);
+  busy.value = true;
+  errorMsg.value = '';
+  try {
+    const res = (await editTask({ id: task.value.id, labels: [...names].map((name) => ({ name, color: lb.color })) })) as {
+      success?: boolean;
+      message?: string;
+    };
+    if (res && res.success === false) throw new Error(res.message || '标签更新失败');
+    await load();
+  } catch (e: any) {
+    errorMsg.value = e.message || '标签更新失败';
+  } finally {
+    busy.value = false;
+  }
+}
 </script>
 
 <template>
@@ -286,11 +334,39 @@ function back() {
         </SidebarSection>
 
         <SidebarSection title="Labels · 标签">
-          <template #action><PhGearSix :size="14" /></template>
+          <template #action>
+            <button v-if="canEditLabels" class="side-gear" title="编辑标签" @click="openLabelPicker">
+              <PhGearSix :size="14" />
+            </button>
+            <PhGearSix v-else :size="14" />
+          </template>
           <div class="side-tags">
-            <span v-if="task.tag" class="tag" :class="TAG_CLASS[task.tag as TaskTag]">{{ task.tag }}</span>
+            <span
+              v-for="l in task.labels || []"
+              :key="l.name"
+              class="label-chip"
+              :class="{ 'label-chip--plain': !l.color }"
+              :style="l.color ? { background: l.color + '26', color: l.color, borderColor: l.color + '59' } : {}"
+            >{{ l.name }}</span>
+            <span v-if="!task.labels?.length && task.tag" class="tag" :class="TAG_CLASS[task.tag as TaskTag]">{{ task.tag }}</span>
             <span v-if="task.priority" class="tag" :class="PRIORITY_CLASS[task.priority as TaskPriority]">{{ task.priority }}优先级</span>
-            <span v-if="!task.tag && !task.priority" class="side-empty">无</span>
+            <span v-if="!task.labels?.length && !task.tag && !task.priority" class="side-empty">无</span>
+          </div>
+          <!-- 挂载面板：勾选标签库，走任务编辑（labels 数组） -->
+          <div v-if="labelPickerOpen" class="label-picker">
+            <label v-for="lb in labelLib" :key="lb.id" class="label-picker__row">
+              <input
+                type="checkbox"
+                :checked="mountedLabelNames.includes(lb.name)"
+                :disabled="busy"
+                @change="toggleLabel(lb)"
+              />
+              <span
+                class="label-chip"
+                :style="{ background: lb.color + '26', color: lb.color, borderColor: lb.color + '59' }"
+              >{{ lb.name }}</span>
+            </label>
+            <span v-if="!labelLib.length" class="side-empty">标签库为空（/issues 工具条可新建）</span>
           </div>
         </SidebarSection>
 
@@ -441,6 +517,53 @@ function back() {
 }
 
 .side-empty { color: var(--text-muted); font-size: var(--font-size-sm); }
+
+.side-gear {
+  display: inline-flex;
+  border: none;
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  padding: 2px;
+  border-radius: var(--radius-xs);
+}
+.side-gear:hover { color: var(--primary); background: var(--gray-100); }
+
+/* 彩色标签 chip（与 /issues 行内同口径） */
+.label-chip {
+  display: inline-flex;
+  align-items: center;
+  padding: 1px 8px;
+  border: 1px solid;
+  border-radius: 999px;
+  font-size: var(--font-size-sm);
+  font-weight: 500;
+  line-height: 18px;
+}
+.label-chip--plain {
+  background: var(--gray-100);
+  color: var(--text-regular);
+  border-color: var(--border-strong);
+}
+
+/* 标签挂载面板 */
+.label-picker {
+  margin-top: var(--spacing-sm);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: var(--spacing-sm);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  background: var(--bg-subtle);
+}
+.label-picker__row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  font-size: var(--font-size-md);
+}
 
 .side-actions {
   display: flex;

@@ -1,6 +1,6 @@
 // 流程中心 API —— /flow/**（jeecg-module-flow，Flowable W2 端点）
-// 契约源：FlowProcessController.java（W2）；请假启动走 /flow/demo/leave/start（W1 冒烟端点，
-// W2 未提供请假发起端点，process/start 仅覆盖报销，属后端缺口，后端补齐后前端只改本文件）。
+// 契约源：FlowProcessController.java（W2）；D-94 收编后 /flow/process/start 统一承载
+// 报销（processKey=expense）与请假（processKey=leave）发起，days 为请假专属入参。
 import http from '@/utils/http';
 
 export enum Api {
@@ -10,8 +10,6 @@ export enum Api {
   ApproveDone = '/flow/approve/done',
   ApproveHandle = '/flow/approve/handle',
   InstanceDetail = '/flow/instance/detail',
-  /** W1 冒烟端点（@IgnoreAuth），W2 无请假发起端点前的过渡消费 */
-  DemoLeaveStart = '/flow/demo/leave/start',
 }
 
 /** 流程定义摘要（listProcessDefinitions） */
@@ -103,15 +101,19 @@ export function startExpenseProcess(params: {
   deptManager: string;
   vp: string;
 }) {
-  return http.post<any, { result: string }>(Api.ProcessStart, undefined, { params });
+  return http.post<any, { result: string }>(Api.ProcessStart, undefined, {
+    params: { processKey: 'expense', ...params },
+  });
 }
 
 /**
- * 发起请假流程（W1 冒烟端点）。
+ * 发起请假流程（D-94 起走统一 /flow/process/start，processKey=leave）。
  * 后端校验口径（FlowLeaveService）：天数整数 1-365；申请人必填（前端传当前登录 username）。
  */
 export function startLeaveProcess(params: { applicant: string; days: number; reason?: string }) {
-  return http.post<any, { result: string }>(Api.DemoLeaveStart, undefined, { params });
+  return http.post<any, { result: string }>(Api.ProcessStart, undefined, {
+    params: { processKey: 'leave', ...params },
+  });
 }
 
 export function fetchTodoList() {

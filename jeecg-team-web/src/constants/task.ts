@@ -21,3 +21,15 @@ export const TAG_CLASS: Record<TaskTag, string> = { 需求: 'tag--info', 开发:
 
 /** 优先级 → 样式类名映射 */
 export const PRIORITY_CLASS: Record<TaskPriority, string> = { 高: 'tag--warning', 中: 'tag--info', 低: 'tag--success' };
+
+/** 标签选色调色板（GitHub/Primer light 实测值，LabelManagerModal 与 TaskDetail 共用） */
+export const LABEL_PALETTE = [
+  '#1a7f37',
+  '#9a6700',
+  '#cf222e',
+  '#8250df',
+  '#0969da',
+  '#1b7c83',
+  '#bf3989',
+  '#59636e',
+] as const;
