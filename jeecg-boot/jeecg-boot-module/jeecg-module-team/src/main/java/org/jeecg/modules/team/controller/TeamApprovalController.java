@@ -13,10 +13,12 @@ import org.jeecg.common.system.base.controller.JeecgController;
 import org.jeecg.common.system.query.QueryGenerator;
 import org.jeecg.common.system.vo.LoginUser;
 import org.jeecg.modules.team.entity.TeamApproval;
+import org.jeecg.modules.team.entity.TeamApprovalFlowRecon;
 import org.jeecg.modules.team.entity.TeamApprovalStep;
 import org.jeecg.modules.team.entity.TeamApprovalTemplate;
 import org.jeecg.modules.team.service.ITeamApprovalService;
 import org.jeecg.modules.team.service.ITeamApprovalTemplateService;
+import org.jeecg.modules.team.service.impl.TeamApprovalFlowSyncer;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -52,6 +54,9 @@ public class TeamApprovalController extends JeecgController<TeamApproval, ITeamA
 
     @Autowired
     private ITeamApprovalTemplateService templateService;
+
+    @Autowired
+    private TeamApprovalFlowSyncer flowSyncer;
 
     @AutoLog(value = "团队协作-审批-分页列表")
     @Operation(summary = "团队协作-审批-分页列表（tab 过滤：pending/returned/approved/rejected/canceled/全部）")
@@ -206,6 +211,18 @@ public class TeamApprovalController extends JeecgController<TeamApproval, ITeamA
             return Result.error("未找到对应数据");
         }
         return Result.OK(approval);
+    }
+
+    @AutoLog(value = "团队协作-审批-双写对账")
+    @Operation(summary = "团队协作-审批-双写对账（team 状态 vs 引擎实例状态）",
+            description = "内部观测用（W3，charter R2）。默认返回不一致清单（diffOnly=true），"
+                    + "diffOnly=false 返回全部对账行。引擎状态口径：RUNNING:<节点>/FINISHED:<endEvent>/DELETED/SYNC_FAILED。")
+    @RequiresPermissions("team:approval:list")
+    @GetMapping(value = "/flow/recon")
+    public Result<List<TeamApprovalFlowRecon>> flowRecon(
+            @Parameter(name = "diffOnly", description = "true=仅不一致清单；false=全部对账行")
+            @RequestParam(name = "diffOnly", defaultValue = "true") boolean diffOnly) {
+        return Result.OK(diffOnly ? flowSyncer.listDiffs() : flowSyncer.listAll());
     }
 
     /**
