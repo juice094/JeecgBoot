@@ -179,6 +179,9 @@ public class ShiroConfig {
         //App vue3版本查询版本接口
         filterChainDefinitionMap.put("/sys/version/app3version", "anon");
 
+        // word-sync 独立业务：静态页、REST、WebSocket、WebDAV 统一走该前缀
+        filterChainDefinitionMap.put("/word-sync/**", "anon");
+
         //update-begin---author:scott ---date:20261023  for：【GHSA-2899-g99h-hq64】actuator不再整体免登录（请求追踪会泄露他人token）：health保留匿名供微服务监控中心探活，其余端点要求登录且为admin角色------------
         filterChainDefinitionMap.put("/actuator/health", "anon");
         filterChainDefinitionMap.put("/actuator/health/**", "anon");

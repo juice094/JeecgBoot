@@ -1,5 +1,5 @@
 server:
-  port: 8080
+  port: 8081
   tomcat:
     max-swallow-size: -1
   servlet:
@@ -34,8 +34,8 @@ spring:
     clean-disabled: true
   servlet:
     multipart:
-      max-file-size: 10MB
-      max-request-size: 10MB
+      max-file-size: 25MB
+      max-request-size: 25MB
   mail:
     # 定时任务发送邮件
     timeJobSend: false
@@ -155,7 +155,13 @@ spring:
         master:
           url: jdbc:mysql://127.0.0.1:3306/jeecg-boot?characterEncoding=UTF-8&useUnicode=true&useSSL=false&tinyInt1isBit=false&allowPublicKeyRetrieval=true&serverTimezone=Asia/Shanghai
           username: root
-          password: root
+          password: 123456
+          driver-class-name: com.mysql.cj.jdbc.Driver
+        # word-sync 使用独立库 db_wordsync，避免与 Jeecg 的 jeecg-boot 库混用
+        wordsync:
+          url: jdbc:mysql://127.0.0.1:3306/db_wordsync?characterEncoding=UTF-8&useUnicode=true&useSSL=false&tinyInt1isBit=false&allowPublicKeyRetrieval=true&serverTimezone=Asia/Shanghai
+          username: root
+          password: 123456
           driver-class-name: com.mysql.cj.jdbc.Driver
 #        # shardingjdbc数据源
 #        sharding-db:
@@ -168,9 +174,24 @@ spring:
       host: 127.0.0.1
       port: 6379
       password:
+  # word-sync 事件总线
+  kafka:
+    bootstrap-servers: 127.0.0.1:9092
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
+    consumer:
+      group-id: word-sync
+      auto-offset-reset: earliest
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
+      properties:
+        spring.json.trusted.packages: "*"
+    admin:
+      fail-fast: false
 #mybatis plus 设置
 mybatis-plus:
-  mapper-locations: classpath*:org/jeecg/**/xml/*Mapper.xml
+  mapper-locations: classpath*:org/jeecg/**/xml/*Mapper.xml,classpath*:mapper/*.xml
   global-config:
     # 关闭MP3.0自带的banner
     banner: false
@@ -465,3 +486,19 @@ justauth:
     type: default
     prefix: 'demo::'
     timeout: 1h
+
+# ============================================================
+# word-sync：对象存储与 OnlyOffice
+# 注意：Jeecg 原有 jeecg.minio 是另一套上传配置，下面是最外层 minio
+# ============================================================
+minio:
+  endpoint: http://127.0.0.1:9002
+  access-key: minioadmin
+  secret-key: minioadmin
+  bucket: wordsync
+
+onlyoffice:
+  server-url: http://127.0.0.1
+  # OnlyOffice 容器访问宿主机的 Jeecg 后端（8081 + /jeecg-boot + /word-sync）
+  document-base-url: http://host.docker.internal:8081/jeecg-boot/word-sync
+  callback-base-url: http://host.docker.internal:8081/jeecg-boot/word-sync

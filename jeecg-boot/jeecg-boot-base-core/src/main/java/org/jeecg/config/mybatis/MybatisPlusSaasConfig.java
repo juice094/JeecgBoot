@@ -32,7 +32,7 @@ import java.util.List;
  */
 @Slf4j
 @Configuration
-@MapperScan(value={"org.jeecg.**.mapper*"})
+@MapperScan(value={"org.jeecg.**.mapper*", "com.lanou.wordsync.**.mapper*"})
 public class MybatisPlusSaasConfig {
     
     /**

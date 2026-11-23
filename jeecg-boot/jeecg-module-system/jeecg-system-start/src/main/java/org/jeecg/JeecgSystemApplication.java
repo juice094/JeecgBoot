@@ -22,7 +22,7 @@ import java.util.Map;
 * 报错提醒: 未集成mongo报错，可以打开启动类上面的注释 exclude={MongoAutoConfiguration.class}
 */
 @Slf4j
-@SpringBootApplication
+@SpringBootApplication(scanBasePackages = {"org.jeecg", "com.lanou.wordsync"})
 @ImportAutoConfiguration(JustAuthAutoConfiguration.class)  // spring boot 3.x justauth 兼容性处理
 @EnableScheduling
 public class JeecgSystemApplication extends SpringBootServletInitializer {

@@ -23,6 +23,7 @@ import org.jeecg.modules.team.service.ITeamTaskService;
 import org.jeecg.modules.team.vo.TeamTaskBoard;
 import org.jeecg.modules.team.vo.TeamTaskDetail;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -47,6 +48,7 @@ public class TeamTaskServiceImpl extends ServiceImpl<TeamTaskMapper, TeamTask> i
     @Autowired
     private TeamOwnershipGuard ownershipGuard;
 
+    @Lazy
     @Autowired
     private ITeamTaskCommentService commentService;
 
