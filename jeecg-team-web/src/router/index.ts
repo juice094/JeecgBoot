@@ -38,24 +38,6 @@ export const layoutChildren: RouteRecordRaw[] = [
     meta: { title: '角色管理', owner: 'Ym3699', group: '管理', icon: 'role', perm: 'system:role:list' },
   },
   {
-    path: 'admin/assets',
-    name: 'AssetManage',
-    component: () => import('@/modules/admin/views/AssetManage.vue'),
-    meta: { title: '行政管理', owner: 'Ym3699', group: '管理', icon: 'assets' },
-  },
-  {
-    path: 'admin/academic',
-    name: 'AcademicManage',
-    component: () => import('@/modules/admin/views/AcademicManage.vue'),
-    meta: { title: '教务管理', owner: 'Ym3699', group: '管理', icon: 'academic' },
-  },
-  {
-    path: 'admin/repair',
-    name: 'RepairManage',
-    component: () => import('@/modules/admin/views/RepairManage.vue'),
-    meta: { title: '后勤管理', owner: 'Ym3699', group: '管理', icon: 'repair' },
-  },
-  {
     path: 'admin/monitor/logs',
     name: 'MonitorLogs',
     component: () => import('@/modules/business/views/monitor/MonitorLogs.vue'),
@@ -84,24 +66,6 @@ export const layoutChildren: RouteRecordRaw[] = [
     name: 'MonitorDataLog',
     component: () => import('@/modules/business/views/monitor/MonitorDataLog.vue'),
     meta: { title: '数据日志', group: '管理', icon: 'logs' },
-  },
-  {
-    path: 'biz/marketing',
-    name: 'Marketing',
-    component: () => import('@/modules/business/views/Marketing.vue'),
-    meta: { title: '市场活动', owner: 'juice094', group: '业务', icon: 'marketing' },
-  },
-  {
-    path: 'biz/vocational',
-    name: 'Vocational',
-    component: () => import('@/modules/business/views/Vocational.vue'),
-    meta: { title: '职业教育', owner: 'juice094', group: '业务', icon: 'vocational' },
-  },
-  {
-    path: 'biz/student',
-    name: 'StudentService',
-    component: () => import('@/modules/business/views/StudentService.vue'),
-    meta: { title: '学生服务', owner: 'juice094', group: '业务', icon: 'student' },
   },
   {
     path: 'tools/request',
