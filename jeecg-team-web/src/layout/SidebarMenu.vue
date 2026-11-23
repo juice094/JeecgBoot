@@ -17,6 +17,7 @@ import {
   PhFolderOpen,
   PhBug,
   PhChartBar,
+  PhMicrophone,
   PhChatTeardropText,
   PhWrench,
   PhCaretLeft,
@@ -59,6 +60,7 @@ const MENU_ICONS: Record<string, Component> = {
   resource: PhFolderOpen,
   bug: PhBug,
   report: PhChartBar,
+  speech: PhMicrophone,
 };
 
 // 侧栏从路由派生，禁止在这里硬编码菜单项（docs/13 §二.5，issue #11）

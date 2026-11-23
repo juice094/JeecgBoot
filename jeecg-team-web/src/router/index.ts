@@ -134,6 +134,13 @@ export const layoutChildren: RouteRecordRaw[] = [
     meta: { title: 'Bug 反馈', owner: 'juice094', group: '工具', icon: 'bug' },
   },
   {
+    // 语音转写：后端 /speech 模块（上传 → 建任务 → 轮询），接口见 src/api/speech.ts
+    path: 'tools/speech',
+    name: 'SpeechDemo',
+    component: () => import('@/modules/speech/views/SpeechDemo.vue'),
+    meta: { title: '录音转写', owner: 'Ym3699', group: '工具', icon: 'speech' },
+  },
+  {
     path: 'tools/taskboard',
     name: 'TaskBoard',
     component: () => import('@/modules/business/views/TaskBoard.vue'),
