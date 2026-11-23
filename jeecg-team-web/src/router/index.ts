@@ -80,6 +80,12 @@ export const layoutChildren: RouteRecordRaw[] = [
     meta: { title: '审批中心', owner: 'juice094', group: '工具', icon: 'approval', perm: 'team:approval:list' },
   },
   {
+    path: 'tools/flow',
+    name: 'FlowCenter',
+    component: () => import('@/modules/business/views/FlowCenter.vue'),
+    meta: { title: '流程中心', owner: 'juice094', group: '工具', icon: 'flow', perm: 'team:flow:approve:todo' },
+  },
+  {
     path: 'tools/email',
     name: 'WorkEmail',
     component: () => import('@/modules/business/views/WorkEmail.vue'),
