@@ -70,6 +70,8 @@ interface ViewRow {
   labels: IssueLabel[];
   priority?: string;
   blocked: boolean;
+  /** 被依赖任务数（blockedBy 长度，仅任务行携带；驱动阻塞徽章 hover 计数） */
+  blockedByCount?: number;
   createTime?: string;
   dueDate?: string;
 }
@@ -172,6 +174,7 @@ function taskToView(t: Task): ViewRow {
     labels: t.labels?.length ? t.labels : t.tag ? [{ name: t.tag, color: '' }] : [],
     priority: t.priority,
     blocked: !!t.blocked,
+    blockedByCount: t.blockedBy?.length,
     createTime: t.createTime,
     dueDate: t.dueDate,
   };
@@ -188,6 +191,7 @@ function issueToView(r: IssueRow): ViewRow {
     assigneeName: r.assigneeName,
     labels: r.labels || [],
     blocked: !!r.blocked,
+    blockedByCount: r.blockedBy?.length,
     createTime: r.createTime,
     dueDate: r.dueDate,
   };
@@ -576,7 +580,11 @@ function batchAssign() {
             <div class="issue-row__title-line">
               <a class="issue-row__no" :class="'issue-row__no--' + row.kind">{{ row.code }}</a>
               <a class="issue-row__title" @click.stop="openDetail(row)">{{ row.title }}</a>
-              <span v-if="row.blocked" class="blocked-badge" title="存在未完成的依赖">
+              <span
+                v-if="row.blocked"
+                class="blocked-badge"
+                :title="row.blockedByCount ? `被 ${row.blockedByCount} 项前置阻塞` : '存在未完成的依赖'"
+              >
                 <PhProhibit :size="12" />阻塞
               </span>
               <span

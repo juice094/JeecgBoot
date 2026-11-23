@@ -57,7 +57,11 @@ async function loadDefs() {
   try {
     const data = await fetchProcessList();
     defs.value = data.result ?? [];
-    if (!selectedKey.value && defs.value.length) selectedKey.value = defs.value[0].processDefinitionKey;
+    if (!selectedKey.value && defs.value.length) {
+      selectedKey.value = defs.value[0].processDefinitionKey;
+      // 首次默认选中同样带出审批人（与手点切换同口径）
+      applyApproverPreview(defs.value[0]);
+    }
   } catch (e: any) {
     errorMsg.value = e.message || '流程定义加载失败';
   } finally {
@@ -65,11 +69,29 @@ async function loadDefs() {
   }
 }
 
+/**
+ * 审批人默认带出：process/list 的 approverPreview 非 null 字段预填办理人，可修改；
+ * null 保持必填手填。与 /tools/request 默认链同源（resolver 解析）。
+ */
+function applyApproverPreview(def: FlowProcessDef) {
+  if (!isExpenseKey(def.processDefinitionKey)) return;
+  const preview = def.approverPreview;
+  if (!preview) return;
+  if (preview.deptManager) form.deptManager = preview.deptManager;
+  if (preview.vp) form.vp = preview.vp;
+}
+
+function isExpenseKey(key: string): boolean {
+  return key === 'expenseProcess';
+}
+
 function selectDef(key: string) {
   if (key === selectedKey.value) return;
   selectedKey.value = key;
   startError.value = '';
   receiptId.value = '';
+  const def = defs.value.find((d) => d.processDefinitionKey === key);
+  if (def) applyApproverPreview(def);
 }
 
 const MAX_AMOUNT = 1000000;

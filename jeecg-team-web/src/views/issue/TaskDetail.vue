@@ -2,14 +2,15 @@
 // 任务详情页（/tools/taskboard/:id）
 // 布局对齐 GitHub Issue 详情（.refs/raw/github-issue-3-detail.htm）：
 // 主栏 = 描述卡片 + 时间线（事件与评论按时间混排）+ 评论编辑器；右侧 296px 元数据栏。
-import { computed, onMounted, ref } from 'vue';
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import {
-  PhArrowLeft, PhArrowCounterClockwise, PhArrowsLeftRight, PhChatCircle, PhCheckCircle, PhGearSix, PhPlusCircle, PhTrash, PhXCircle,
+  PhArrowLeft, PhArrowCounterClockwise, PhArrowsLeftRight, PhChatCircle, PhCheckCircle, PhGearSix, PhPlus, PhPlusCircle, PhTrash, PhX, PhXCircle,
 } from '@phosphor-icons/vue';
 import {
   fetchTaskDetail, addTaskComment, changeTaskStatus, deleteTask, editTask, listLabels,
-  type Task, type TaskComment, type TaskEvent, type TeamLabel,
+  listTaskDependencies, addTaskDependency, removeTaskDependency, listTasks,
+  type Task, type TaskComment, type TaskEvent, type TeamLabel, type TaskListParams,
 } from '@/api/team';
 import { timeAgo } from '@/utils/time';
 import { TASK_STATUSES, TAG_CLASS, PRIORITY_CLASS, type TaskTag, type TaskPriority, type TaskStatusKey } from '@/constants/task';
@@ -48,6 +49,7 @@ async function load() {
     task.value = data.result.task;
     comments.value = data.result.comments || [];
     timeline.value = data.result.timeline || [];
+    await loadDependencies();
   } catch (e: any) {
     errorMsg.value = e.message || '加载失败';
   } finally {
@@ -236,6 +238,109 @@ async function toggleLabel(lb: TeamLabel) {
     busy.value = false;
   }
 }
+
+// ---- 依赖面板（blockedBy 渲染 + 按编号/标题搜索添加 + 移除；循环依赖前端预检，后端兜底） ----
+const dependencies = ref<Task[]>([]);
+const depMsg = ref('');
+const depAddOpen = ref(false);
+const depSearchInput = ref('');
+const depCandidates = ref<Task[]>([]);
+const depSearching = ref(false);
+let depSearchTimer = 0;
+
+/** 编辑权限与标签/改派同口径（team:task:edit） */
+const canEditDeps = canEditLabels;
+
+async function loadDependencies() {
+  try {
+    const data = await listTaskDependencies(taskId.value);
+    dependencies.value = data.result || [];
+  } catch {
+    // 依赖列表加载失败不阻塞详情（detail.blockedBy 仍可驱动阻塞态展示）
+    dependencies.value = [];
+  }
+}
+
+/** 任务行显示：优先租户内序号，回退 UUID 前 7 位 */
+function depTaskLabel(t: Task): string {
+  return t.taskNo ? '#' + t.taskNo : '#' + t.id.slice(0, 7);
+}
+
+function openDepDetail(dep: Task) {
+  router.push('/tools/taskboard/' + dep.id);
+}
+
+async function removeDep(dep: Task) {
+  if (!task.value || busy.value) return;
+  busy.value = true;
+  depMsg.value = '';
+  try {
+    const res = await removeTaskDependency(task.value.id, dep.id);
+    if (res && res.success === false) throw new Error(res.message || '移除依赖失败');
+    depMsg.value = `已移除对 ${depTaskLabel(dep)} 的依赖`;
+    await load();
+  } catch (e: any) {
+    depMsg.value = e.message || '移除依赖失败';
+  } finally {
+    busy.value = false;
+  }
+}
+
+/** 搜索候选（排除自身与已依赖项；循环依赖在选中时再预检） */
+watch(depSearchInput, (val) => {
+  window.clearTimeout(depSearchTimer);
+  const q = val.trim();
+  if (!q) {
+    depCandidates.value = [];
+    return;
+  }
+  depSearchTimer = window.setTimeout(async () => {
+    depSearching.value = true;
+    try {
+      const noMatch = /^#?(\d+)$/.exec(q);
+      const params: TaskListParams = { pageNo: 1, pageSize: 10 };
+      if (noMatch) params.taskNo = Number(noMatch[1]);
+      else params.title = '*' + q + '*';
+      const data = await listTasks(params);
+      const blockedIds = new Set(dependencies.value.map((d) => d.id));
+      depCandidates.value = (data.result?.records || []).filter(
+        (t) => t.id !== taskId.value && !blockedIds.has(t.id),
+      );
+    } catch {
+      depCandidates.value = [];
+    } finally {
+      depSearching.value = false;
+    }
+  }, 300);
+});
+
+/**
+ * 添加依赖。前端预检：自身、重复项已在候选过滤排除；再查候选的被依赖列表，
+ * 若候选直接依赖本任务则判定循环（一跳预检，更深环由后端兜底拒绝）。
+ */
+async function addDep(candidate: Task) {
+  if (!task.value || busy.value) return;
+  busy.value = true;
+  depMsg.value = '';
+  try {
+    const candDeps = await listTaskDependencies(candidate.id);
+    if ((candDeps.result || []).some((t) => t.id === taskId.value)) {
+      throw new Error(`无法添加：${depTaskLabel(candidate)} 已依赖本任务，将形成循环`);
+    }
+    const res = await addTaskDependency(task.value.id, candidate.id);
+    if (res && res.success === false) throw new Error(res.message || '添加依赖失败');
+    depSearchInput.value = '';
+    depCandidates.value = [];
+    depMsg.value = `已添加依赖 ${depTaskLabel(candidate)}`;
+    await load();
+  } catch (e: any) {
+    depMsg.value = e.message || '添加依赖失败';
+  } finally {
+    busy.value = false;
+  }
+}
+
+onBeforeUnmount(() => window.clearTimeout(depSearchTimer));
 </script>
 
 <template>
@@ -367,6 +472,58 @@ async function toggleLabel(lb: TeamLabel) {
               >{{ lb.name }}</span>
             </label>
             <span v-if="!labelLib.length" class="side-empty">标签库为空（/issues 工具条可新建）</span>
+          </div>
+        </SidebarSection>
+
+        <SidebarSection title="依赖 · Dependencies">
+          <template #action>
+            <button v-if="canEditDeps" class="side-gear" title="添加依赖" @click="depAddOpen = !depAddOpen">
+              <PhPlus :size="14" />
+            </button>
+          </template>
+          <div v-if="dependencies.length" class="dep-list">
+            <div v-for="dep in dependencies" :key="dep.id" class="dep-row">
+              <a class="dep-row__link" :title="dep.title" @click="openDepDetail(dep)">
+                <span class="dep-row__no">{{ depTaskLabel(dep) }}</span>
+                <span class="dep-row__title">{{ dep.title }}</span>
+                <span v-if="dep.status !== 'done'" class="tag tag--warning">未完成</span>
+              </a>
+              <button
+                v-if="canEditDeps"
+                class="side-gear dep-row__remove"
+                title="移除依赖"
+                :disabled="busy"
+                @click="removeDep(dep)"
+              >
+                <PhX :size="13" />
+              </button>
+            </div>
+          </div>
+          <span v-else class="side-empty">无前置依赖</span>
+          <div v-if="depMsg" class="dep-msg">{{ depMsg }}</div>
+          <!-- 添加依赖：按 #编号 或标题搜索；自身/重复项过滤，循环依赖一跳预检 + 后端兜底 -->
+          <div v-if="depAddOpen" class="dep-picker">
+            <input
+              v-model="depSearchInput"
+              type="text"
+              class="dep-picker__input"
+              placeholder="按 #编号 或 标题 搜索任务…"
+              :disabled="busy"
+            />
+            <div v-if="depSearching" class="side-empty">搜索中…</div>
+            <template v-else>
+              <button
+                v-for="cand in depCandidates"
+                :key="cand.id"
+                class="dep-picker__item"
+                :disabled="busy"
+                @click="addDep(cand)"
+              >
+                <span class="dep-row__no">{{ depTaskLabel(cand) }}</span>
+                <span class="dep-row__title">{{ cand.title }}</span>
+              </button>
+              <span v-if="depSearchInput.trim() && !depCandidates.length" class="side-empty">无匹配任务</span>
+            </template>
           </div>
         </SidebarSection>
 
@@ -564,6 +721,88 @@ async function toggleLabel(lb: TeamLabel) {
   cursor: pointer;
   font-size: var(--font-size-md);
 }
+
+/* 依赖面板 */
+.dep-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.dep-row {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.dep-row__link {
+  flex: 1;
+  min-width: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  font-size: var(--font-size-md);
+  color: var(--text-regular);
+  border-radius: var(--radius-xs);
+}
+.dep-row__link:hover .dep-row__title { color: var(--primary); }
+.dep-row__no {
+  flex-shrink: 0;
+  color: var(--success);
+  font-weight: 600;
+}
+.dep-row__title {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.dep-row__remove {
+  flex-shrink: 0;
+}
+.dep-msg {
+  margin-top: var(--spacing-xs);
+  font-size: var(--font-size-sm);
+  color: var(--text-muted);
+}
+.dep-picker {
+  margin-top: var(--spacing-sm);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: var(--spacing-sm);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  background: var(--bg-subtle);
+}
+.dep-picker__input {
+  height: 28px;
+  padding: 0 8px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  background: var(--bg-card);
+  font-size: var(--font-size-md);
+  color: var(--text-main);
+  outline: none;
+  font-family: inherit;
+}
+.dep-picker__input:focus { border-color: var(--primary); }
+.dep-picker__item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 6px;
+  border: none;
+  border-radius: var(--radius-xs);
+  background: transparent;
+  font-size: var(--font-size-md);
+  color: var(--text-regular);
+  cursor: pointer;
+  font-family: inherit;
+  text-align: left;
+}
+.dep-picker__item:hover:not(:disabled) { background: var(--gray-100); color: var(--primary); }
+.dep-picker__item:disabled { opacity: 0.5; cursor: not-allowed; }
 
 .side-actions {
   display: flex;

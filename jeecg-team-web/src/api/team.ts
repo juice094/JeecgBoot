@@ -42,6 +42,8 @@ export interface Task {
   assigneeName?: string;
   /** 依赖未完成等导致的阻塞标记位 */
   blocked?: boolean;
+  /** 被依赖任务 ID 列表（/team/task/detail 与 /team/issue/list 任务行携带，P1.5a 契约） */
+  blockedBy?: string[];
   /** 彩色标签（后端行内嵌，P1 起替代单值 tag） */
   labels?: IssueLabel[];
   dueDate?: string;
@@ -301,6 +303,8 @@ export interface IssueRow {
   assigneeName?: string;
   labels: IssueLabel[];
   blocked: boolean;
+  /** 任务行的被依赖任务 ID 列表（P1.5a 契约；缺陷/审批行不携带） */
+  blockedBy?: string[];
   createTime?: string;
   dueDate?: string;
 }
@@ -342,6 +346,28 @@ export function editLabel(body: { id: string; name?: string; color?: string }) {
 
 export function deleteLabel(id: string) {
   return http.delete(`/team/label/delete?id=${id}`);
+}
+
+// ---------- 任务依赖（/team/task/dependency*，需 team:task:edit；循环依赖后端兜底） ----------
+
+/** 被依赖任务列表（含状态快照，渲染依赖面板直接可用） */
+export function listTaskDependencies(taskId: string) {
+  return http.get<any, { result: Task[] }>('/team/task/dependency/list', { params: { taskId } });
+}
+
+/** 添加依赖：taskId 依赖 dependsOnTaskId（自依赖/重复/循环由后端强校验） */
+export function addTaskDependency(taskId: string, dependsOnTaskId: string) {
+  return http.post<any, { success?: boolean; message?: string }>('/team/task/dependency', {
+    taskId,
+    dependsOnTaskId,
+  });
+}
+
+/** 移除依赖（不存在视为幂等成功） */
+export function removeTaskDependency(taskId: string, dependsOnTaskId: string) {
+  return http.delete<any, { success?: boolean; message?: string }>('/team/task/dependency', {
+    params: { taskId, dependsOnTaskId },
+  });
 }
 
 // ---------- 行内操作：认领 / 改派（需 team:task:edit，服务端再做归属校验） ----------

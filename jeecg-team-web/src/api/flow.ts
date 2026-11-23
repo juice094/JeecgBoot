@@ -20,6 +20,11 @@ export interface FlowProcessDef {
   deploymentId?: string;
   suspended?: boolean;
   runningInstances?: number;
+  /**
+   * 审批人预览（P1.5a 契约）：与 /tools/request 默认链同源（resolver 解析）。
+   * deptManager/vp 为 null 表示解析不到，发起表单保持必填手填。
+   */
+  approverPreview?: { deptManager: string | null; vp: string | null };
 }
 
 /** 待办任务摘要（listTodoTasks） */
