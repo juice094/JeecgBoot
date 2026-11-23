@@ -1,0 +1,738 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Word 文档同步工作台</title>
+    <style>
+        * { box-sizing: border-box; }
+        body {
+            margin: 0;
+            font-family: "Microsoft YaHei", "PingFang SC", Arial, sans-serif;
+            background: #f2f5f9;
+            color: #1f2d3d;
+        }
+        header {
+            background: linear-gradient(135deg, #1f4e79, #2d6da3);
+            color: white;
+            padding: 18px 28px;
+        }
+        header h1 { margin: 0; font-size: 22px; font-weight: 600; }
+        header p { margin: 6px 0 0; font-size: 13px; opacity: .85; }
+        main {
+            max-width: 1280px;
+            margin: 20px auto;
+            padding: 0 16px 40px;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 16px;
+        }
+        .card {
+            background: white;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(31, 78, 121, .08);
+            padding: 16px 18px;
+        }
+        .card.full { grid-column: 1 / -1; }
+        h2 {
+            margin: 0 0 12px;
+            font-size: 16px;
+            color: #1f4e79;
+            border-left: 4px solid #2d6da3;
+            padding-left: 8px;
+        }
+        .row { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+        input[type="text"], input[type="file"] {
+            padding: 8px 10px;
+            border: 1px solid #cfd8e3;
+            border-radius: 6px;
+            font-size: 13px;
+        }
+        input[type="text"] { min-width: 220px; }
+        button {
+            padding: 8px 14px;
+            border: 0;
+            border-radius: 6px;
+            background: #2d6da3;
+            color: white;
+            cursor: pointer;
+            font-size: 13px;
+        }
+        button:hover { background: #1f4e79; }
+        button.secondary { background: #e8eef5; color: #1f4e79; }
+        button.secondary:hover { background: #d7e2ee; }
+        button.danger { background: #c0392b; }
+        table { width: 100%; border-collapse: collapse; font-size: 13px; }
+        th, td { padding: 9px 8px; border-bottom: 1px solid #edf1f6; text-align: left; }
+        th { color: #5b6b7c; font-weight: 600; background: #f8fafc; }
+        tr:hover td { background: #f8fafc; }
+        .tag {
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 10px;
+            background: #e8f2fb;
+            color: #1f4e79;
+            font-size: 12px;
+        }
+        .hidden { display: none !important; }
+        .section-toggle {
+            width: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 0 0 8px;
+            margin: 0;
+            background: transparent;
+            border: 0;
+            border-left: 4px solid #2d6da3;
+            border-radius: 0;
+            color: #1f4e79;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: 600;
+            text-align: left;
+        }
+        .section-toggle:hover { background: transparent; color: #1f4e79; }
+        .section-toggle .chevron { font-size: 12px; transition: transform .2s; }
+        .section-toggle.open .chevron { transform: rotate(90deg); }
+        .section-body { margin-top: 12px; }
+        #editorWrap { margin-top: 10px; border: 1px solid #e3e9f1; border-radius: 8px; overflow: hidden; }
+        #editor { width: 100%; height: 720px; }
+        #message { margin-top: 10px; font-size: 13px; }
+        .ok { color: #1e8e5a; }
+        .err { color: #c0392b; }
+        #wsLog, #detailPanel, #auditPanel, #recyclePanel {
+            font-size: 12.5px;
+            line-height: 1.7;
+            color: #4a5a6a;
+            max-height: 240px;
+            overflow: auto;
+            background: #f8fafc;
+            border-radius: 6px;
+            padding: 8px 10px;
+        }
+        .item { padding: 4px 0; border-bottom: 1px dashed #e3e9f1; }
+        .item:last-child { border-bottom: 0; }
+        .empty { color: #8a99a8; padding: 8px 0; }
+
+        /* ============================================================
+           嵌入团队协作工作台时，跟随工作台的深色青绿主题
+           （与 jeecg-team-web 的 variables.css 深色令牌保持一致）
+           ============================================================ */
+        body.embed-mode {
+            background: #0d1117;
+            color: #e6edf3;
+            color-scheme: dark;
+        }
+        body.embed-mode main { color: #e6edf3; }
+        body.embed-mode header { display: none; }
+        body.embed-mode main { margin: 0; padding: 12px; max-width: none; }
+        body.embed-mode .card {
+            background: #161b22;
+            border: 1px solid #30363d;
+            box-shadow: none;
+        }
+        body.embed-mode h2 {
+            color: #e6edf3;
+            border-left-color: #2ea69a;
+        }
+        body.embed-mode input[type="text"],
+        body.embed-mode input[type="file"] {
+            background: #0d1117;
+            border-color: #30363d;
+            color: #e6edf3;
+            color-scheme: dark;
+        }
+        body.embed-mode input::placeholder { color: #6e7681; }
+        body.embed-mode button {
+            background: #2ea69a;
+            color: #fff;
+        }
+        body.embed-mode button:hover { background: #3db9ad; }
+        body.embed-mode button.secondary {
+            background: #21262d;
+            border: 1px solid #30363d;
+            color: #c9d1d9;
+        }
+        body.embed-mode button.secondary:hover {
+            background: #30363d;
+            color: #fff;
+        }
+        body.embed-mode button.danger { background: #f85149; color: #fff; }
+        body.embed-mode button.danger:hover { background: #ff7b72; }
+        body.embed-mode button.section-toggle,
+        body.embed-mode button.section-toggle:hover {
+            background: transparent;
+            border: 0;
+            border-left: 4px solid #2ea69a;
+            color: #e6edf3;
+        }
+        body.embed-mode button.section-toggle:hover { color: #2ea69a; }
+        body.embed-mode .section-toggle .chevron { color: #8b949e; }
+        body.embed-mode table th {
+            background: #161b22;
+            color: #8b949e;
+            border-bottom-color: #30363d;
+        }
+        body.embed-mode table td {
+            color: #c9d1d9;
+            border-bottom-color: #21262d;
+        }
+        body.embed-mode tr:hover td { background: #1c2128; }
+        body.embed-mode .tag {
+            background: #0f2b2a;
+            border: 1px solid rgba(46, 166, 154, .4);
+            color: #6acfc5;
+        }
+        body.embed-mode #wsLog,
+        body.embed-mode #detailPanel,
+        body.embed-mode #auditPanel,
+        body.embed-mode #recyclePanel {
+            background: #0d1117;
+            border: 1px solid #21262d;
+            color: #8b949e;
+        }
+        body.embed-mode .item { border-bottom-color: #21262d; }
+        body.embed-mode .empty { color: #6e7681; }
+        body.embed-mode .ok { color: #3fb950; }
+        body.embed-mode .err { color: #ff7b72; }
+        body.embed-mode #editorWrap { border-color: #30363d; }
+        body.embed-mode #editorHint { color: #8b949e !important; }
+        body.embed-mode #message { color: #c9d1d9; }
+        body.embed-mode a { color: #2ea69a; }
+        body.embed-mode ::-webkit-scrollbar-thumb {
+            background: #3d444d;
+            border-radius: 999px;
+        }
+        body.embed-mode ::-webkit-scrollbar-track { background: transparent; }
+
+        /* ============================================================
+           嵌入模式下跟随工作台“浅色主题”
+           ============================================================ */
+        body.embed-mode.embed-light {
+            background: #f2f5f9;
+            color: #1f2d3d;
+            color-scheme: light;
+        }
+        body.embed-mode.embed-light main { color: #1f2d3d; }
+        body.embed-mode.embed-light .card {
+            background: #fff;
+            border: 1px solid #e3e9f1;
+            box-shadow: 0 2px 10px rgba(31, 78, 121, .08);
+        }
+        body.embed-mode.embed-light h2 {
+            color: #1f4e79;
+            border-left-color: #2d6da3;
+        }
+        body.embed-mode.embed-light input[type="text"],
+        body.embed-mode.embed-light input[type="file"] {
+            background: #fff;
+            border-color: #cfd8e3;
+            color: #1f2d3d;
+            color-scheme: light;
+        }
+        body.embed-mode.embed-light input::placeholder { color: #8a99a8; }
+        body.embed-mode.embed-light button {
+            background: #127a7b;
+            color: #fff;
+        }
+        body.embed-mode.embed-light button:hover { background: #0e6162; }
+        body.embed-mode.embed-light button:active { background: #0a4d4e; }
+        body.embed-mode.embed-light button.secondary {
+            background: #e6f2f2;
+            border: 0;
+            color: #0e6162;
+        }
+        body.embed-mode.embed-light button.secondary:hover {
+            background: #cce5e5;
+            color: #0a4d4e;
+        }
+        body.embed-mode.embed-light button.danger { background: #c0392b; color: #fff; }
+        body.embed-mode.embed-light button.danger:hover { background: #a93226; }
+        body.embed-mode.embed-light button.section-toggle,
+        body.embed-mode.embed-light button.section-toggle:hover {
+            background: transparent;
+            border: 0;
+            border-left: 4px solid #127a7b;
+            color: #0e6162;
+        }
+        body.embed-mode.embed-light button.section-toggle:hover { color: #127a7b; }
+        body.embed-mode.embed-light input:focus { border-color: #127a7b; outline: none; }
+        body.embed-mode.embed-light .section-toggle .chevron { color: #5b6b7c; }
+        body.embed-mode.embed-light table th {
+            background: #f8fafc;
+            color: #5b6b7c;
+            border-bottom-color: #edf1f6;
+        }
+        body.embed-mode.embed-light table td {
+            color: #1f2d3d;
+            border-bottom-color: #edf1f6;
+        }
+        body.embed-mode.embed-light tr:hover td { background: #f8fafc; }
+        body.embed-mode.embed-light .tag {
+            background: #e8f2fb;
+            border: 0;
+            color: #1f4e79;
+        }
+        body.embed-mode.embed-light #wsLog,
+        body.embed-mode.embed-light #detailPanel,
+        body.embed-mode.embed-light #auditPanel,
+        body.embed-mode.embed-light #recyclePanel {
+            background: transparent;
+            border: 0;
+            color: #4a5a6a;
+        }
+        body.embed-mode.embed-light .item { border-bottom-color: #e3e9f1; }
+        body.embed-mode.embed-light .empty { color: #8a99a8; }
+        body.embed-mode.embed-light .ok { color: #1e8e5a; }
+        body.embed-mode.embed-light .err { color: #c0392b; }
+        body.embed-mode.embed-light #editorWrap { border-color: #e3e9f1; }
+        body.embed-mode.embed-light #editorHint { color: #6b7280 !important; }
+        body.embed-mode.embed-light #message { color: #1f2d3d; }
+        body.embed-mode.embed-light a { color: #2d6da3; }
+        body.embed-mode.embed-light ::-webkit-scrollbar-thumb { background: #cbd5e1; }
+
+        @media (max-width: 900px) { main { grid-template-columns: 1fr; } }
+    </style>
+</head>
+<body>
+<header>
+    <h1>Word 文档同步工作台</h1>
+    <p>上传 Word 文档 · 在线编辑 · 版本同步 · WebDAV · 实时通知 · 审计日志</p>
+</header>
+
+<main>
+    <section class="card full">
+        <h2>上传 Word 文档</h2>
+        <div class="row">
+            <input type="file" id="fileInput" accept=".docx">
+            <input type="text" id="titleInput" placeholder="标题（可选，默认文件名）">
+            <button onclick="uploadDocument()">上传</button>
+            <button class="secondary" onclick="loadDocuments()">刷新列表</button>
+        </div>
+        <div id="message"></div>
+    </section>
+
+    <section class="card full">
+        <h2>文档列表</h2>
+        <div class="row" style="margin-bottom:10px;">
+            <input type="text" id="keywordInput" placeholder="标题关键词">
+            <input type="text" id="ownerInput" placeholder="所有者 userId（可选）">
+            <button class="secondary" onclick="loadDocuments()">搜索</button>
+            <button class="secondary" onclick="clearSearch()">清空</button>
+        </div>
+        <table>
+            <thead>
+            <tr>
+                <th>ID</th>
+                <th>标题</th>
+                <th>当前版本</th>
+                <th>状态</th>
+                <th>更新时间</th>
+                <th>操作</th>
+            </tr>
+            </thead>
+            <tbody id="documentBody">
+            <tr><td colspan="6" class="empty">加载中…</td></tr>
+            </tbody>
+        </table>
+    </section>
+
+    <section class="card full hidden" id="editorSection">
+        <h2>在线编辑：<span id="editorTitle"></span></h2>
+        <div id="editorToolbar" class="row" style="margin-bottom:8px;">
+            <button onclick="forceSave()">保存新版本</button>
+            <button class="secondary" onclick="loadVersions(currentDocId)">刷新版本</button>
+            <button class="secondary" onclick="loadAudit(currentDocId)">刷新审计</button>
+            <a id="downloadLink" href="#" target="_blank"><button class="secondary">下载当前版本</button></a>
+            <span id="editorHint" style="font-size:12px;color:#8a99a8;">OnlyOffice 正在加载，请稍候…</span>
+        </div>
+        <div id="editorWrap"><div id="editor"></div></div>
+    </section>
+
+    <section class="card">
+        <button class="section-toggle" id="versionToggle"
+                onclick="toggleSection('versionBody', this)" aria-expanded="false">
+            <span>版本历史</span><span class="chevron">▸</span>
+        </button>
+        <div id="versionBody" class="section-body hidden">
+            <div id="detailPanel"><div class="empty">点击文档的「版本」查看</div></div>
+        </div>
+    </section>
+
+    <section class="card">
+        <button class="section-toggle" id="wsToggle"
+                onclick="toggleSection('wsBody', this)" aria-expanded="false">
+            <span>实时通知</span><span class="chevron">▸</span>
+        </button>
+        <div id="wsBody" class="section-body hidden">
+            <div id="wsLog"><div class="empty">打开文档编辑后，其他端保存会在这里收到通知</div></div>
+        </div>
+    </section>
+
+    <section class="card full">
+        <button class="section-toggle" id="auditToggle"
+                onclick="toggleSection('auditBody', this)" aria-expanded="false">
+            <span>审计日志</span><span class="chevron">▸</span>
+        </button>
+        <div id="auditBody" class="section-body hidden">
+            <div id="auditPanel"><div class="empty">点击文档的「审计」查看</div></div>
+        </div>
+    </section>
+
+    <section class="card full">
+        <button class="section-toggle" id="recycleToggle"
+                onclick="toggleSection('recycleBody', this); loadRecycle()" aria-expanded="false">
+            <span>回收站</span><span class="chevron">▸</span>
+        </button>
+        <div id="recycleBody" class="section-body hidden">
+            <div id="recyclePanel"><div class="empty">暂无回收站数据</div></div>
+        </div>
+    </section>
+</main>
+
+<!-- OnlyOffice DocumentServer 的 JS API，当前容器端口是 80 -->
+<script src="http://127.0.0.1/web-apps/apps/api/documents/api.js"></script>
+<script>
+    const API = '/jeecg-boot/word-sync';
+    let currentDocId = null;
+    let editor = null;
+    let ws = null;
+
+    // ?embed=1 用于嵌入团队工作台；theme 与父页面亮暗主题联动
+    const embedParams = new URLSearchParams(location.search);
+    const embedMode = embedParams.get('embed') === '1';
+    if (embedMode) {
+        document.body.classList.add('embed-mode');
+    }
+
+    function applyEmbedTheme(theme) {
+        document.body.classList.toggle('embed-light', theme === 'light');
+    }
+
+    if (embedMode) {
+        applyEmbedTheme(embedParams.get('theme') === 'light' ? 'light' : 'dark');
+    }
+
+    window.addEventListener('message', (event) => {
+        const data = event.data;
+        if (data && data.type === 'team-theme' && (data.theme === 'light' || data.theme === 'dark')) {
+            applyEmbedTheme(data.theme);
+        }
+    });
+
+    function message(text, isError) {
+        const el = document.getElementById('message');
+        el.innerHTML = `<span class="${isError ? 'err' : 'ok'}">${text}</span>`;
+    }
+
+    function toggleSection(bodyId, btn) {
+        const body = document.getElementById(bodyId);
+        if (!body || !btn) return;
+        const collapsed = body.classList.toggle('hidden');
+        btn.classList.toggle('open', !collapsed);
+        btn.setAttribute('aria-expanded', String(!collapsed));
+        const chevron = btn.querySelector('.chevron');
+        if (chevron) chevron.textContent = collapsed ? '▸' : '▾';
+    }
+
+    function openSection(bodyId, toggleId) {
+        const body = document.getElementById(bodyId);
+        const btn = document.getElementById(toggleId);
+        if (body && btn && body.classList.contains('hidden')) {
+            toggleSection(bodyId, btn);
+        }
+    }
+
+    async function request(path, options) {
+        const resp = await fetch(API + path, options);
+        const text = await resp.text();
+        let json;
+        try { json = text ? JSON.parse(text) : {}; } catch (e) { throw new Error(text); }
+        if (!resp.ok) throw new Error(json.message || ('HTTP ' + resp.status));
+        if (json.code !== undefined && json.code !== 0) throw new Error(json.message || '业务错误');
+        return json;
+    }
+
+    async function loadDocuments() {
+        const tbody = document.getElementById('documentBody');
+        try {
+            const keyword = (document.getElementById('keywordInput')?.value || '').trim();
+            const ownerId = (document.getElementById('ownerInput')?.value || '').trim();
+            let query = '/api/documents?page=1&size=50';
+            if (keyword) query += '&keyword=' + encodeURIComponent(keyword);
+            if (ownerId) query += '&ownerId=' + encodeURIComponent(ownerId);
+            const res = await request(query);
+            const list = res.data.list || [];
+            // ID 大的排上面，ID 小的排下面
+            list.sort((a, b) => Number(b.documentId) - Number(a.documentId));
+            if (!list.length) {
+                tbody.innerHTML = '<tr><td colspan="6" class="empty">还没有文档，先上传一个 .docx 吧</td></tr>';
+                return;
+            }
+            tbody.innerHTML = list.map(d => `
+                <tr>
+                    <td>${d.documentId}</td>
+                    <td>${escapeHtml(d.title)}</td>
+                    <td><span class="tag">v${d.currentVersion}</span></td>
+                    <td>${d.status}</td>
+                    <td>${d.updatedAt || ''}</td>
+                    <td>
+                        <button onclick="openEditor(${d.documentId}, '${escapeJs(d.title)}')">编辑</button>
+                        <button class="secondary" onclick="loadVersions(${d.documentId})">版本</button>
+                        <button class="secondary" onclick="loadAudit(${d.documentId})">审计</button>
+                        <a href="${API}/api/documents/${d.documentId}/download" target="_blank">
+                            <button class="secondary">下载</button>
+                        </a>
+                        <button class="danger" onclick="deleteDocument(${d.documentId})">删除</button>
+                    </td>
+                </tr>
+            `).join('');
+        } catch (e) {
+            tbody.innerHTML = `<tr><td colspan="6" class="err">加载失败：${escapeHtml(e.message)}</td></tr>`;
+        }
+    }
+
+    async function uploadDocument() {
+        const fileInput = document.getElementById('fileInput');
+        const titleInput = document.getElementById('titleInput');
+        if (!fileInput.files || !fileInput.files.length) {
+            message('请先选择 .docx 文件', true);
+            return;
+        }
+        const form = new FormData();
+        form.append('file', fileInput.files[0]);
+        form.append('title', titleInput.value || '');
+        form.append('userId', '1');
+        try {
+            const res = await request('/api/documents/upload', { method: 'POST', body: form });
+            message('上传成功：documentId=' + res.data.documentId + '，版本=' + res.data.currentVersion);
+            fileInput.value = '';
+            titleInput.value = '';
+            await loadDocuments();
+            await loadVersions(res.data.documentId);
+        } catch (e) {
+            message('上传失败：' + e.message, true);
+        }
+    }
+
+    function clearSearch() {
+        document.getElementById('keywordInput').value = '';
+        document.getElementById('ownerInput').value = '';
+        loadDocuments();
+    }
+
+    async function deleteDocument(docId) {
+        if (!confirm(`确认删除文档 ${docId}？删除后可在回收站恢复。`)) return;
+        try {
+            await request(`/api/documents/${docId}?userId=1`, { method: 'DELETE' });
+            message(`文档 ${docId} 已移入回收站`);
+            await loadDocuments();
+            await loadRecycle();
+        } catch (e) {
+            message('删除失败：' + e.message, true);
+        }
+    }
+
+    async function loadRecycle() {
+        const panel = document.getElementById('recyclePanel');
+        try {
+            const res = await request('/api/documents/recycle?page=1&size=20');
+            const list = res.data.list || [];
+            if (!list.length) {
+                panel.innerHTML = '<div class="empty">回收站为空</div>';
+                return;
+            }
+            panel.innerHTML = list.map(d => `
+                <div class="item">
+                    <b>${d.documentId}</b> ${escapeHtml(d.title)}
+                    <span class="tag">${d.status}</span>
+                    <button class="secondary" onclick="restoreDocument(${d.documentId})">恢复</button>
+                </div>
+            `).join('');
+        } catch (e) {
+            panel.innerHTML = `<div class="err">回收站加载失败：${escapeHtml(e.message)}</div>`;
+        }
+    }
+
+    async function restoreDocument(docId) {
+        try {
+            await request(`/api/documents/${docId}/restore?userId=1`, { method: 'POST' });
+            message(`文档 ${docId} 已恢复`);
+            await loadDocuments();
+            await loadRecycle();
+        } catch (e) {
+            message('恢复失败：' + e.message, true);
+        }
+    }
+
+    async function openEditor(docId, title) {
+        try {
+            const res = await request(`/api/documents/${docId}/editor-config?userId=1&userName=${encodeURIComponent('前端用户')}&mode=edit`);
+            const config = res.data;
+            config.width = '100%';
+            config.height = '720px';
+            document.getElementById('editorSection').classList.remove('hidden');
+            document.getElementById('editorTitle').textContent = title || ('文档 ' + docId);
+            document.getElementById('downloadLink').href = `${API}/api/documents/${docId}/download`;
+            document.getElementById('editorHint').textContent = 'OnlyOffice 加载中…';
+            if (editor) { try { editor.destroyEditor(); } catch (e) {} editor = null; }
+            document.getElementById('editor').innerHTML = '';
+            // OnlyOffice 加载完成/失败时更新提示
+            config.events = {
+                onDocumentReady: function () {
+                    document.getElementById('editorHint').textContent = 'OnlyOffice 已加载';
+                },
+                onDocumentStateChange: function (event) {
+                    document.getElementById('editorHint').textContent =
+                        event && event.data ? '有未保存修改，可点「保存新版本」' : '已保存';
+                },
+                onError: function (event) {
+                    document.getElementById('editorHint').textContent = 'OnlyOffice 加载失败：'
+                        + (event && event.data ? JSON.stringify(event.data) : '未知错误');
+                }
+            };
+            editor = new DocsAPI.DocEditor('editor', config);
+            currentDocId = docId;
+            connectWs(docId);
+            await loadVersions(docId, false);
+            await loadAudit(docId, false);
+            document.getElementById('editorSection').scrollIntoView({ behavior: 'smooth' });
+        } catch (e) {
+            message('打开编辑器失败：' + e.message, true);
+        }
+    }
+
+    async function forceSave() {
+        if (!editor || !currentDocId) {
+            message('编辑器还没有加载完成', true);
+            return;
+        }
+        try {
+            const res = await request(`/api/documents/${currentDocId}/force-save`, { method: 'POST' });
+            const error = res.data && res.data.response ? res.data.response.error : null;
+            if (error === 0) {
+                message('已请求保存，正在生成新版本…');
+                setTimeout(() => loadVersions(currentDocId), 2500);
+            } else {
+                message(`OnlyOffice 返回 error=${error}（4 表示没有新修改）`, true);
+            }
+        } catch (e) {
+            message('保存失败：' + e.message, true);
+        }
+    }
+
+    async function loadVersions(docId, expand = true) {
+        currentDocId = docId;
+        if (expand) openSection('versionBody', 'versionToggle');
+        const panel = document.getElementById('detailPanel');
+        try {
+            const [versionsRes, docRes] = await Promise.all([
+                request(`/api/documents/${docId}/versions`),
+                request(`/api/documents/${docId}`)
+            ]);
+            const list = versionsRes.data || [];
+            const currentVersion = docRes.data ? docRes.data.currentVersion : null;
+            if (!list.length) { panel.innerHTML = '<div class="empty">暂无版本</div>'; return; }
+            panel.innerHTML = list.map(v => {
+                const isCurrent = currentVersion !== null && v.versionNo === currentVersion;
+                return `
+                <div class="item">
+                    <b>v${v.versionNo}</b>
+                    ${isCurrent ? '<span class="tag">当前</span>' : ''}
+                    <span class="tag">${v.source}</span>
+                    ${v.size} 字节 · ${v.createdAt || ''}
+                    <button class="secondary" onclick="rollback(${docId}, ${v.versionNo})"
+                            ${isCurrent ? 'disabled' : ''}>回滚到此版本</button>
+                </div>`;
+            }).join('');
+        } catch (e) {
+            panel.innerHTML = `<div class="err">版本加载失败：${escapeHtml(e.message)}</div>`;
+        }
+    }
+
+    async function rollback(docId, versionNo) {
+        const wasEditing = currentDocId === docId && editor;
+        const tip = wasEditing
+            ? `确认回滚到 v${versionNo}？\n回滚会关闭当前编辑器，未保存的修改会丢失。`
+            : `确认回滚到 v${versionNo}？`;
+        if (!confirm(tip)) return;
+        try {
+            const res = await request(`/api/documents/${docId}/versions/${versionNo}/rollback?userId=1`, { method: 'POST' });
+            const newVersion = res.data && res.data.versionNo ? res.data.versionNo : versionNo;
+            message(`已回滚到 v${versionNo}，当前版本为 v${newVersion}`);
+
+            if (wasEditing && newVersion !== versionNo) {
+                const title = document.getElementById('editorTitle').textContent;
+                try { editor.destroyEditor(); } catch (e) {}
+                editor = null;
+                document.getElementById('editor').innerHTML = '';
+                await openEditor(docId, title);
+            } else {
+                await loadVersions(docId);
+            }
+            await loadDocuments();
+        } catch (e) {
+            message('回滚失败：' + e.message, true);
+        }
+    }
+
+    async function loadAudit(docId, expand = true) {
+        if (expand) openSection('auditBody', 'auditToggle');
+        const panel = document.getElementById('auditPanel');
+        try {
+            const res = await request(`/api/documents/${docId}/audit?page=1&size=30`);
+            const list = res.data.list || [];
+            if (!list.length) { panel.innerHTML = '<div class="empty">暂无审计记录</div>'; return; }
+            panel.innerHTML = list.map(a => `
+                <div class="item">
+                    <b>${a.action}</b> · 用户 ${a.userId || '-'} · ${a.createdAt || ''}
+                    ${a.detail ? '<br><span style="color:#8a99a8">' + escapeHtml(a.detail) + '</span>' : ''}
+                </div>
+            `).join('');
+        } catch (e) {
+            panel.innerHTML = `<div class="err">审计加载失败：${escapeHtml(e.message)}</div>`;
+        }
+    }
+
+    function connectWs(docId) {
+        if (ws) { try { ws.close(); } catch (e) {} }
+        const log = document.getElementById('wsLog');
+        log.innerHTML = '<div class="empty">正在连接 WebSocket…</div>';
+        ws = new WebSocket(`${location.protocol === 'https:' ? 'wss://' : 'ws://'}${location.host}/jeecg-boot/word-sync/ws/docs?docId=${docId}&userId=1`);
+        ws.onopen = () => { log.innerHTML = '<div class="ok">已连接，等待文档更新通知…</div>'; };
+        ws.onmessage = (event) => {
+            // 只显示最新一条消息
+            const item = document.createElement('div');
+            item.className = 'item';
+            item.textContent = event.data;
+            log.replaceChildren(item);
+            try {
+                const data = JSON.parse(event.data);
+                if (data.type === 'doc.updated') {
+                    loadDocuments();
+                    if (currentDocId) loadVersions(currentDocId, false);
+                }
+            } catch (e) {}
+        };
+        ws.onerror = () => { log.innerHTML = '<div class="err">WebSocket 连接失败，请确认后端已启动</div>'; };
+        ws.onclose = () => { if (log.innerHTML.indexOf('已连接') >= 0) log.innerHTML = '<div class="empty">WebSocket 已断开</div>'; };
+    }
+
+    function escapeHtml(s) {
+        return String(s || '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+    }
+    function escapeJs(s) {
+        return String(s || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+    }
+
+    loadDocuments();
+
+    // 支持通过 ?docId=1 自动打开某篇文档，便于联调和截图验证
+    const autoDocId = new URLSearchParams(location.search).get('docId');
+    if (autoDocId) {
+        setTimeout(() => openEditor(Number(autoDocId), ''), 300);
+    }
+</script>
+</body>
+</html>

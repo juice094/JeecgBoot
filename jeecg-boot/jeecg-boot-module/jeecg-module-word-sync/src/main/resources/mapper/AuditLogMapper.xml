@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.lanou.wordsync.audit.mapper.AuditLogMapper">
+
+    <insert id="insert" parameterType="com.lanou.wordsync.audit.entity.AuditLog"
+            useGeneratedKeys="true" keyProperty="logId">
+        INSERT INTO tb_audit_log (doc_id, user_id, action, detail, ip, trace_id)
+        VALUES (#{docId}, #{userId}, #{action}, #{detail}, #{ip}, #{traceId})
+    </insert>
+
+    <select id="selectByDocId" resultType="com.lanou.wordsync.audit.entity.AuditLog">
+        SELECT log_id, doc_id, user_id, action, detail, ip, trace_id, created_at
+        FROM tb_audit_log
+        WHERE doc_id = #{docId}
+        ORDER BY created_at DESC
+        LIMIT #{offset}, #{size}
+    </select>
+
+    <select id="countByDocId" resultType="long">
+        SELECT COUNT(*)
+        FROM tb_audit_log
+        WHERE doc_id = #{docId}
+    </select>
+
+</mapper>

@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.lanou.wordsync.version.mapper.DocumentCurrentMapper">
+
+    <update id="updateCurrent">
+        UPDATE tb_document
+        SET current_version = #{versionNo},
+            storage_key = #{storageKey},
+            updated_at = CURRENT_TIMESTAMP
+        WHERE document_id = #{docId}
+    </update>
+
+    <select id="selectCurrentVersion" resultType="java.lang.Integer">
+        SELECT current_version
+        FROM tb_document
+        WHERE document_id = #{docId}
+    </select>
+
+</mapper>
