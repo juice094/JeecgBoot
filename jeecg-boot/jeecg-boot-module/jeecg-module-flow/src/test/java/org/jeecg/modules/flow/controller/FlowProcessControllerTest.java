@@ -1,11 +1,19 @@
 package org.jeecg.modules.flow.controller;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 import java.math.BigDecimal;
+import java.util.List;
+import java.util.Map;
 
 import org.apache.shiro.mgt.DefaultSecurityManager;
 import org.apache.shiro.subject.PrincipalCollection;
@@ -18,6 +26,7 @@ import org.flowable.engine.impl.cfg.StandaloneInMemProcessEngineConfiguration;
 import org.jeecg.common.exception.JeecgBootBizTipException;
 import org.jeecg.common.system.vo.LoginUser;
 import org.jeecg.modules.flow.service.FlowApproveService;
+import org.jeecg.modules.flow.service.FlowApproverResolver;
 import org.jeecg.modules.flow.service.FlowExpenseService;
 import org.jeecg.modules.flow.service.FlowLeaveService;
 import org.junit.jupiter.api.AfterAll;
@@ -81,6 +90,8 @@ class FlowProcessControllerTest {
     private void loginAs(String username) {
         LoginUser loginUser = new LoginUser();
         loginUser.setUsername(username);
+        // id= sys_user.id，processList 的审批人预览以其为解析入参
+        loginUser.setId("uid-" + username);
         PrincipalCollection principals = new SimplePrincipalCollection(loginUser, "testRealm");
         Subject subject = new Subject.Builder()
                 .principals(principals)
@@ -153,5 +164,31 @@ class FlowProcessControllerTest {
         loginAs(USER_APPLICANT);
         assertThrows(JeecgBootBizTipException.class,
                 () -> controller.start("expense", null, "差旅报销", null, null, "dm", "vp"));
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void processListCarriesApproverPreviewResolvedForCurrentUser() {
+        loginAs(USER_APPLICANT);
+        // 与 /tools/request 默认链同源：同 FlowApproverResolver；这里 mock 解析面，验证内嵌与 null 兜底
+        FlowApproverResolver resolver = mock(FlowApproverResolver.class);
+        when(resolver.resolveDeptManagerUsername("uid-" + USER_APPLICANT)).thenReturn("dept_mgr_a");
+        when(resolver.resolveVpUsername("uid-" + USER_APPLICANT)).thenReturn(null);
+        FlowApproveService approveService =
+                (FlowApproveService) ReflectionTestUtils.getField(controller, "flowApproveService");
+        ReflectionTestUtils.setField(approveService, "flowApproverResolver", resolver);
+
+        List<Map<String, Object>> list = controller.processList().getResult();
+
+        assertFalse(list.isEmpty(), "已部署的流程定义至少 2 个（报销/请假）");
+        for (Map<String, Object> item : list) {
+            Map<String, Object> preview = (Map<String, Object>) item.get("approverPreview");
+            assertNotNull(preview, "每个定义项都带 approverPreview: " + item.get("processDefinitionKey"));
+            assertEquals("dept_mgr_a", preview.get("deptManager"), "部门主管按当前登录人解析");
+            assertNull(preview.get("vp"), "解析不到给 null=前端保持手填");
+        }
+        // 每个定义项各解析一次（当前部署 2 条定义 → 各 2 次）
+        verify(resolver, times(list.size())).resolveDeptManagerUsername("uid-" + USER_APPLICANT);
+        verify(resolver, times(list.size())).resolveVpUsername("uid-" + USER_APPLICANT);
     }
 }

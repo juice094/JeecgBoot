@@ -2,6 +2,7 @@ package org.jeecg.modules.team.mapper;
 
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
 import org.apache.ibatis.annotations.Mapper;
+import org.apache.ibatis.annotations.Select;
 import org.jeecg.modules.team.entity.TeamTask;
 
 /**
@@ -12,4 +13,11 @@ import org.jeecg.modules.team.entity.TeamTask;
  */
 @Mapper
 public interface TeamTaskMapper extends BaseMapper<TeamTask> {
+
+    /**
+     * 全局最大任务序号（含逻辑删行；uk_team_task_no 唯一索引覆盖全表，
+     * nextTaskNo 必须跨越逻辑删行取值，否则复用已删序号撞唯一键）
+     */
+    @Select("SELECT MAX(task_no) FROM team_task")
+    Integer selectMaxTaskNo();
 }

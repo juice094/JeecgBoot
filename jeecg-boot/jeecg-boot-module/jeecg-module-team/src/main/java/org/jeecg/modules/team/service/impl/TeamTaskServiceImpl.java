@@ -2,6 +2,7 @@ package org.jeecg.modules.team.service.impl;
 
 import java.time.LocalDate;
 import java.time.ZoneId;
+import java.util.Collections;
 import java.util.Date;
 import java.util.List;
 
@@ -209,6 +210,9 @@ public class TeamTaskServiceImpl extends ServiceImpl<TeamTaskMapper, TeamTask> i
         TeamTaskDetail detail = new TeamTaskDetail();
         detail.setTask(task);
         detail.setComments(commentService.listByTask(id));
+        detail.setBlockedBy(dependencyService
+                .mapUnfinishedDependsOnIds(Collections.singletonList(id))
+                .getOrDefault(id, Collections.emptyList()));
 
         // 时间线复用审计日志：只追加不改写，天然就是事件流
         LambdaQueryWrapper<TeamAuditLog> wrapper = new LambdaQueryWrapper<>();
@@ -221,10 +225,10 @@ public class TeamTaskServiceImpl extends ServiceImpl<TeamTaskMapper, TeamTask> i
 
     @Override
     public int nextTaskNo() {
-        LambdaQueryWrapper<TeamTask> wrapper = new LambdaQueryWrapper<>();
-        wrapper.orderByDesc(TeamTask::getTaskNo).last("LIMIT 1");
-        TeamTask latest = getOne(wrapper, false);
-        return latest != null && latest.getTaskNo() != null ? latest.getTaskNo() + 1 : 1;
+        // ponytail: 手写 MAX 查询取全表最大序号（含逻辑删行）；MP 的 @TableLogic 查询会自动
+        // 过滤 deleted=1，直接用 getOne(orderByDesc) 会把已删行的序号算漏，复用时撞 uk_team_task_no
+        Integer max = baseMapper.selectMaxTaskNo();
+        return max != null ? max + 1 : 1;
     }
 
     @Override

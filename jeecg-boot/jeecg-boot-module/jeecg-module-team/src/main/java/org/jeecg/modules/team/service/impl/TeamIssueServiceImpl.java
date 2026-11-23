@@ -17,6 +17,7 @@ import org.jeecg.modules.team.entity.TeamTask;
 import org.jeecg.modules.team.service.ITeamApprovalService;
 import org.jeecg.modules.team.service.ITeamBugService;
 import org.jeecg.modules.team.service.ITeamIssueService;
+import org.jeecg.modules.team.service.ITeamTaskDependencyService;
 import org.jeecg.modules.team.service.ITeamTaskLabelService;
 import org.jeecg.modules.team.service.ITeamTaskService;
 import org.jeecg.modules.team.vo.TeamIssueRow;
@@ -59,6 +60,9 @@ public class TeamIssueServiceImpl implements ITeamIssueService {
 
     @Autowired
     private ITeamTaskLabelService taskLabelService;
+
+    @Autowired
+    private ITeamTaskDependencyService taskDependencyService;
 
     @Override
     public IPage<TeamIssueRow> issuePage(String kind, String keyword, String assigneeId,
@@ -110,6 +114,9 @@ public class TeamIssueServiceImpl implements ITeamIssueService {
         }
         Map<String, List<TeamLabel>> labelMap = taskLabelService.listLabelsByTaskIds(
                 tasks.stream().map(TeamTask::getId).collect(Collectors.toList()));
+        // blockedBy 批查一次（task_dependency 两查口径），避免聚合行 N+1
+        Map<String, List<String>> blockedByMap = taskDependencyService.mapUnfinishedDependsOnIds(
+                tasks.stream().map(TeamTask::getId).collect(Collectors.toList()));
         List<TeamIssueRow> rows = new ArrayList<>(tasks.size());
         for (TeamTask task : tasks) {
             TeamIssueRow row = new TeamIssueRow();
@@ -121,6 +128,7 @@ public class TeamIssueServiceImpl implements ITeamIssueService {
             row.setAssigneeName(task.getAssigneeName());
             row.setLabels(labelMap.getOrDefault(task.getId(), Collections.emptyList()));
             row.setBlocked(task.getBlocked() != null && task.getBlocked() == 1);
+            row.setBlockedBy(blockedByMap.getOrDefault(task.getId(), Collections.emptyList()));
             row.setCreateTime(task.getCreateTime());
             row.setDueDate(task.getDueDate());
             rows.add(row);
@@ -149,6 +157,7 @@ public class TeamIssueServiceImpl implements ITeamIssueService {
             row.setState(toState(BUG_OPEN, bug.getStatus()));
             row.setLabels(Collections.emptyList());
             row.setBlocked(Boolean.FALSE);
+            row.setBlockedBy(Collections.emptyList());
             row.setCreateTime(bug.getCreateTime());
             rows.add(row);
         }
@@ -173,6 +182,7 @@ public class TeamIssueServiceImpl implements ITeamIssueService {
             row.setState(toState(APPROVAL_OPEN, approval.getStatus()));
             row.setLabels(Collections.emptyList());
             row.setBlocked(Boolean.FALSE);
+            row.setBlockedBy(Collections.emptyList());
             row.setCreateTime(approval.getCreateTime());
             row.setDueDate(approval.getEndDate());
             rows.add(row);

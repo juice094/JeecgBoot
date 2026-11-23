@@ -15,6 +15,7 @@ import static org.mockito.Mockito.when;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 
 import org.jeecg.common.exception.JeecgBootException;
 import org.jeecg.modules.team.entity.TeamTask;
@@ -234,5 +235,40 @@ class TeamTaskDependencyServiceTest {
                 Collections.emptyList(), Collections.emptyList());
         assertTrue(svc.listDependsOnTasks("t1").isEmpty());
         verify(taskService, never()).listByIds(any());
+    }
+
+    @Test
+    void mapUnfinishedDependsOnIdsFiltersDoneAndGroupsByTask() {
+        TeamTaskDependencyMapper mapper = mock(TeamTaskDependencyMapper.class);
+        ITeamTaskService taskService = mock(ITeamTaskService.class);
+        // t1→t2,t3；t2→t3。被依赖任务批查只返回未完成的 t3（t2 已 done 由 SQL 过滤，不回表）
+        when(taskService.list(any(LambdaQueryWrapper.class))).thenAnswer(inv -> {
+            LambdaQueryWrapper<TeamTask> w = inv.getArgument(0);
+            assertTrue(w.getSqlSegment().contains("status"), "须下发 status != done 条件: " + w.getSqlSegment());
+            return Collections.singletonList(taskOf("t3", "doing", 0));
+        });
+        TeamTaskDependencyServiceImpl svc = newService(mapper, taskService,
+                Arrays.asList(link("t1", "t2"), link("t1", "t3"), link("t2", "t3")),
+                Collections.emptyList());
+
+        Map<String, List<String>> result = svc.mapUnfinishedDependsOnIds(Arrays.asList("t1", "t2"));
+
+        assertEquals(2, result.size());
+        assertEquals(Collections.singletonList("t3"), result.get("t1"), "已完成的 t2 不得出现在 blockedBy");
+        assertEquals(Collections.singletonList("t3"), result.get("t2"));
+    }
+
+    @Test
+    void mapUnfinishedDependsOnIdsEmptyInputs() {
+        TeamTaskDependencyMapper mapper = mock(TeamTaskDependencyMapper.class);
+        ITeamTaskService taskService = mock(ITeamTaskService.class);
+        TeamTaskDependencyServiceImpl svc = newService(mapper, taskService,
+                Collections.emptyList(), Collections.emptyList());
+
+        assertTrue(svc.mapUnfinishedDependsOnIds(Collections.emptyList()).isEmpty());
+        assertTrue(svc.mapUnfinishedDependsOnIds(null).isEmpty());
+        // 无依赖行时不查被依赖任务（第二查跳过）
+        assertTrue(svc.mapUnfinishedDependsOnIds(Collections.singletonList("t1")).isEmpty());
+        verify(taskService, never()).list(any(LambdaQueryWrapper.class));
     }
 }

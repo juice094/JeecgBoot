@@ -7,6 +7,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -23,6 +24,7 @@ import org.jeecg.modules.team.entity.TeamLabel;
 import org.jeecg.modules.team.entity.TeamTask;
 import org.jeecg.modules.team.service.ITeamApprovalService;
 import org.jeecg.modules.team.service.ITeamBugService;
+import org.jeecg.modules.team.service.ITeamTaskDependencyService;
 import org.jeecg.modules.team.service.ITeamTaskLabelService;
 import org.jeecg.modules.team.service.ITeamTaskService;
 import org.jeecg.modules.team.vo.TeamIssueRow;
@@ -96,16 +98,19 @@ class TeamIssueServiceTest {
         ITeamBugService bugService = mock(ITeamBugService.class);
         ITeamApprovalService approvalService = mock(ITeamApprovalService.class);
         ITeamTaskLabelService taskLabelService = mock(ITeamTaskLabelService.class);
+        ITeamTaskDependencyService taskDependencyService = mock(ITeamTaskDependencyService.class);
         when(taskService.list(any(com.baomidou.mybatisplus.core.conditions.Wrapper.class))).thenReturn(tasks);
         when(bugService.list(any(com.baomidou.mybatisplus.core.conditions.Wrapper.class))).thenReturn(bugs);
         when(approvalService.list(any(com.baomidou.mybatisplus.core.conditions.Wrapper.class))).thenReturn(approvals);
         when(taskLabelService.listLabelsByTaskIds(any())).thenReturn(labelMap);
+        when(taskDependencyService.mapUnfinishedDependsOnIds(any())).thenReturn(Collections.emptyMap());
 
         TeamIssueServiceImpl svc = new TeamIssueServiceImpl();
         ReflectionTestUtils.setField(svc, "teamTaskService", taskService);
         ReflectionTestUtils.setField(svc, "teamBugService", bugService);
         ReflectionTestUtils.setField(svc, "teamApprovalService", approvalService);
         ReflectionTestUtils.setField(svc, "taskLabelService", taskLabelService);
+        ReflectionTestUtils.setField(svc, "taskDependencyService", taskDependencyService);
         return svc;
     }
 
@@ -269,5 +274,31 @@ class TeamIssueServiceTest {
         IPage<TeamIssueRow> page = svc.issuePage("task", null, null, "all", 1, 10);
         assertEquals(1, page.getTotal());
         assertNull(page.getRecords().get(0).getCode(), "taskNo 缺失时 code 为 null（不编造编号）");
+    }
+
+    @Test
+    void taskRowsCarryBlockedByAndOtherKindsEmpty() {
+        TeamIssueServiceImpl svc = sampleService();
+        // t1 被 t9（未完成）阻塞；t2 的依赖已全部完成
+        Map<String, List<String>> blockedByMap = new HashMap<>();
+        blockedByMap.put("t1", Collections.singletonList("t9"));
+        ITeamTaskDependencyService depService =
+                (ITeamTaskDependencyService) ReflectionTestUtils.getField(svc, "taskDependencyService");
+        when(depService.mapUnfinishedDependsOnIds(any())).thenReturn(blockedByMap);
+
+        IPage<TeamIssueRow> page = svc.issuePage("all", null, null, "all", 1, 10);
+        // create_time desc：approval(40) > task t1(30) > bug(20) > task t2(10)
+        TeamIssueRow taskRow = page.getRecords().get(1);
+        assertEquals(Collections.singletonList("t9"), taskRow.getBlockedBy(), "task 行内嵌未完成依赖 id");
+        TeamIssueRow doneTask = page.getRecords().get(3);
+        assertTrue(doneTask.getBlockedBy().isEmpty(), "无未完成依赖 → 空数组");
+
+        TeamIssueRow bugRow = page.getRecords().get(2);
+        assertTrue(bugRow.getBlockedBy().isEmpty(), "bug 行恒空数组");
+        TeamIssueRow approvalRow = page.getRecords().get(0);
+        assertTrue(approvalRow.getBlockedBy().isEmpty(), "approval 行恒空数组");
+
+        // 聚合行合并时批量查一次，不得 N+1
+        verify(depService, times(1)).mapUnfinishedDependsOnIds(any());
     }
 }

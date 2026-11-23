@@ -46,20 +46,23 @@ public class FlowApproveService {
     private HistoryService historyService;
     @Autowired
     private RepositoryService repositoryService;
+    @Autowired
+    private FlowApproverResolver flowApproverResolver;
 
     /**
-     * 流程定义列表（含在途实例数），供 /flow/process/list 使用
+     * 流程定义列表（含在途实例数 + 审批人预览），供 /flow/process/list 使用
      *
+     * @param applicantUserId 当前登录人 sys_user.id（审批人预览的解析入参）
      * @return 流程定义摘要列表
      */
-    public List<Map<String, Object>> listProcessDefinitions() {
+    public List<Map<String, Object>> listProcessDefinitions(String applicantUserId) {
         List<ProcessDefinition> definitions = repositoryService.createProcessDefinitionQuery()
                 .latestVersion()
                 .orderByProcessDefinitionKey().asc()
                 .list();
         List<Map<String, Object>> result = new ArrayList<>(definitions.size());
         for (ProcessDefinition definition : definitions) {
-            Map<String, Object> item = new LinkedHashMap<>(6);
+            Map<String, Object> item = new LinkedHashMap<>(7);
             item.put("processDefinitionKey", definition.getKey());
             item.put("processDefinitionName", definition.getName());
             item.put("version", definition.getVersion());
@@ -69,6 +72,13 @@ public class FlowApproveService {
                     .processDefinitionId(definition.getId())
                     .count();
             item.put("runningInstances", runningInstances);
+            // 与 /tools/request 默认链同源：同 FlowApproverResolver 对当前登录人解析，
+            // 解析不到给 null（前端保持手填，与 W2 显式参数兜底口径一致）
+            Map<String, Object> approverPreview = new LinkedHashMap<>(2);
+            approverPreview.put("deptManager",
+                    flowApproverResolver.resolveDeptManagerUsername(applicantUserId));
+            approverPreview.put("vp", flowApproverResolver.resolveVpUsername(applicantUserId));
+            item.put("approverPreview", approverPreview);
             result.add(item);
         }
         return result;

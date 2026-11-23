@@ -1,7 +1,13 @@
 package org.jeecg.modules.team.service.impl;
 
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Collections;
 import java.util.Date;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 import org.apache.commons.lang3.StringUtils;
@@ -120,6 +126,37 @@ public class TeamTaskDependencyServiceImpl extends ServiceImpl<TeamTaskDependenc
         for (String dependentTaskId : dependentTaskIds) {
             refreshBlocked(dependentTaskId);
         }
+    }
+
+    @Override
+    public Map<String, List<String>> mapUnfinishedDependsOnIds(Collection<String> taskIds) {
+        if (taskIds == null || taskIds.isEmpty()) {
+            return Collections.emptyMap();
+        }
+        LambdaQueryWrapper<TeamTaskDependency> depWrapper = new LambdaQueryWrapper<>();
+        depWrapper.in(TeamTaskDependency::getTaskId, taskIds);
+        List<TeamTaskDependency> deps = list(depWrapper);
+        if (deps.isEmpty()) {
+            return Collections.emptyMap();
+        }
+        List<String> dependsOnIds = deps.stream()
+                .map(TeamTaskDependency::getDependsOnTaskId)
+                .distinct()
+                .collect(Collectors.toList());
+        LambdaQueryWrapper<TeamTask> unfinishedWrapper = new LambdaQueryWrapper<>();
+        unfinishedWrapper.in(TeamTask::getId, dependsOnIds)
+                .ne(TeamTask::getStatus, TeamTaskStatus.DONE.getCode());
+        Set<String> unfinishedIds = teamTaskService.list(unfinishedWrapper).stream()
+                .map(TeamTask::getId)
+                .collect(Collectors.toSet());
+        Map<String, List<String>> result = new HashMap<>();
+        for (TeamTaskDependency dep : deps) {
+            if (!unfinishedIds.contains(dep.getDependsOnTaskId())) {
+                continue;
+            }
+            result.computeIfAbsent(dep.getTaskId(), k -> new ArrayList<>()).add(dep.getDependsOnTaskId());
+        }
+        return result;
     }
 
     /**

@@ -5,6 +5,7 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.Mockito.mock;
 
 import java.math.BigDecimal;
 import java.util.List;
@@ -59,6 +60,9 @@ class FlowExpenseProcessTest {
         ReflectionTestUtils.setField(approveService, "runtimeService", engine.getRuntimeService());
         ReflectionTestUtils.setField(approveService, "historyService", engine.getHistoryService());
         ReflectionTestUtils.setField(approveService, "repositoryService", engine.getRepositoryService());
+        // listProcessDefinitions 需审批人预览解析器；本类只断言定义项存在，mock 恒 null 兜底
+        FlowApproverResolver resolver = mock(FlowApproverResolver.class);
+        ReflectionTestUtils.setField(approveService, "flowApproverResolver", resolver);
     }
 
     @AfterAll
@@ -204,7 +208,7 @@ class FlowExpenseProcessTest {
 
     @Test
     void processListContainsExpenseDefinition() {
-        List<Map<String, Object>> definitions = approveService.listProcessDefinitions();
+        List<Map<String, Object>> definitions = approveService.listProcessDefinitions("u_test");
         assertTrue(definitions.stream().anyMatch(d ->
                 FlowExpenseService.PROCESS_KEY_EXPENSE.equals(d.get("processDefinitionKey"))));
     }
@@ -218,6 +222,6 @@ class FlowExpenseProcessTest {
         assertEquals(1, engine.getRepositoryService().createProcessDefinitionQuery()
                 .processDefinitionKey(FlowExpenseService.PROCESS_KEY_EXPENSE)
                 .count(), "重复执行部署不得产生新版本");
-        assertEquals(2, approveService.listProcessDefinitions().size(), "请假+报销两条定义，重复运行不得增多");
+        assertEquals(2, approveService.listProcessDefinitions("u_test").size(), "请假+报销两条定义，重复运行不得增多");
     }
 }

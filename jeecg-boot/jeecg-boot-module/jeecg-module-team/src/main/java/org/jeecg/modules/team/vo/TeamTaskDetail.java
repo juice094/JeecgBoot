@@ -27,6 +27,9 @@ public class TeamTaskDetail implements Serializable {
     @Schema(description = "任务主体")
     private TeamTask task;
 
+    @Schema(description = "未完成依赖任务 id 列表（无依赖或未完成任务恒为空数组）")
+    private List<String> blockedBy = new ArrayList<>();
+
     @Schema(description = "评论列表（创建时间升序）")
     private List<TeamTaskComment> comments = new ArrayList<>();
 

@@ -50,10 +50,13 @@ public class FlowProcessController {
     private FlowApproveService flowApproveService;
 
     @RequiresPermissions("team:flow:process:list")
-    @Operation(summary = "流程定义列表（含在途实例数）")
+    @Operation(summary = "流程定义列表（含在途实例数与审批人预览）")
     @GetMapping("/process/list")
     public Result<List<Map<String, Object>>> processList() {
-        return Result.OK(flowApproveService.listProcessDefinitions());
+        LoginUser loginUser = (LoginUser) SecurityUtils.getSubject().getPrincipal();
+        // 审批人预览对当前登录人解析（与 /tools/request 默认链同源）；解析不到为 null，前端保持手填
+        String applicantUserId = loginUser != null ? loginUser.getId() : null;
+        return Result.OK(flowApproveService.listProcessDefinitions(applicantUserId));
     }
 
     @RequiresPermissions("team:flow:process:start")

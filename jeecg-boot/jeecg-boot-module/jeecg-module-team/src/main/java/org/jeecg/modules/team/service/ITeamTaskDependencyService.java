@@ -1,6 +1,8 @@
 package org.jeecg.modules.team.service;
 
+import java.util.Collection;
 import java.util.List;
+import java.util.Map;
 
 import com.baomidou.mybatisplus.extension.service.IService;
 import org.jeecg.modules.team.entity.TeamTask;
@@ -54,4 +56,13 @@ public interface ITeamTaskDependencyService extends IService<TeamTaskDependency>
      * @param completedTaskId 刚完成/重开的任务主键
      */
     void refreshDependentsBlocked(String completedTaskId);
+
+    /**
+     * 批量查询多个任务的未完成依赖（被依赖任务 status != done），聚合列表专用（防 N+1）。
+     * 两查口径：team_task_dependency 按 task_id 批查一次，被依赖任务按 id 批查一次。
+     *
+     * @param taskIds 任务主键集合
+     * @return taskId → 未完成依赖任务 id 列表；无未完成依赖的任务不出现在 key 中
+     */
+    Map<String, List<String>> mapUnfinishedDependsOnIds(Collection<String> taskIds);
 }

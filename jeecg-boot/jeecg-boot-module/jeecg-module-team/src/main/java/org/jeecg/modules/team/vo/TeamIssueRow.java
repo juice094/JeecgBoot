@@ -54,6 +54,9 @@ public class TeamIssueRow implements Serializable {
     @Schema(description = "是否被未完成依赖阻塞（仅 task 有效）")
     private Boolean blocked;
 
+    @Schema(description = "未完成依赖任务 id 列表（仅 task 有效；bug/approval 恒为空数组）")
+    private List<String> blockedBy;
+
     @Schema(description = "创建时间")
     @JsonFormat(timezone = "GMT+8", pattern = "yyyy-MM-dd HH:mm:ss")
     private Date createTime;
