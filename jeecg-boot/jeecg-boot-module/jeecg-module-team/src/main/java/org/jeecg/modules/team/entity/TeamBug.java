@@ -31,6 +31,12 @@ public class TeamBug extends JeecgEntity implements Serializable {
     private String description;
 
     /**
+     * 缺陷序号（#B-n 展示编号，服务端赋值，V3.9.6_16；口径同 task_no）
+     */
+    @Schema(description = "缺陷序号（#B-n 展示编号）", example = "3")
+    private Integer bugNo;
+
+    /**
      * 截图附件路径
      */
     @Schema(description = "截图附件路径")

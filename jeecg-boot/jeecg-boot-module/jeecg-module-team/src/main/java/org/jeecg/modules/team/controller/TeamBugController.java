@@ -84,6 +84,10 @@ public class TeamBugController extends JeecgController<TeamBug, ITeamBugService>
         }
         bug.setStatus("open");
         bug.setCreateTime(new Date());
+        // 缺陷序号：#B-n 展示编号（V3.9.6_16）；并发下依赖 uk_team_bug_no 唯一索引兜底
+        if (bug.getBugNo() == null) {
+            bug.setBugNo(bugService.nextBugNo());
+        }
         bugService.save(bug);
         return Result.OK("反馈已提交");
     }

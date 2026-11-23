@@ -18,6 +18,7 @@ import org.jeecg.modules.team.entity.TeamTask;
 import org.jeecg.modules.team.enums.TeamAuditAction;
 import org.jeecg.modules.team.enums.TeamAuditBizType;
 import org.jeecg.modules.team.mapper.TeamTaskMapper;
+import org.jeecg.modules.team.service.ITeamTaskDependencyService;
 import org.junit.jupiter.api.Test;
 import org.mockito.MockedStatic;
 import org.springframework.test.util.ReflectionTestUtils;
@@ -39,6 +40,8 @@ class TeamTaskServiceStatusTest {
         TeamTaskServiceImpl svc = new TeamTaskServiceImpl();
         ReflectionTestUtils.setField(svc, "baseMapper", mapper);
         ReflectionTestUtils.setField(svc, "auditLogger", logger);
+        // P1 依赖线引入：changeStatus 会调用依赖服务（doing 前置校验 + 依赖方 blocked 重算）
+        ReflectionTestUtils.setField(svc, "dependencyService", mock(ITeamTaskDependencyService.class));
         return svc;
     }
 

@@ -23,6 +23,7 @@ import org.jeecg.modules.team.enums.TeamAuditBizType;
 import org.jeecg.modules.team.mapper.TeamAuditLogMapper;
 import org.jeecg.modules.team.mapper.TeamTaskMapper;
 import org.jeecg.modules.team.service.ITeamTaskCommentService;
+import org.jeecg.modules.team.service.ITeamTaskDependencyService;
 import org.jeecg.modules.team.service.ITeamTaskService;
 import org.junit.jupiter.api.Assumptions;
 import org.junit.jupiter.api.BeforeAll;
@@ -145,6 +146,13 @@ class TeamStatusFlowTransactionTest {
         @Bean
         public ITeamTaskCommentService teamTaskCommentService() {
             return mock(ITeamTaskCommentService.class);
+        }
+
+        // P1 依赖线引入：changeStatus 完成时重算依赖方 blocked；
+        // 本测试任务无依赖行，真实实现查询 team_task_dependency 为空即短路
+        @Bean
+        public ITeamTaskDependencyService teamTaskDependencyService() {
+            return new TeamTaskDependencyServiceImpl();
         }
     }
 
