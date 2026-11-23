@@ -1,0 +1,18 @@
+# 成员池登记 —— 模型白名单唯一权威源（军规：子代理仅允许本表成员）
+# 准入条件：模型 ∈ capability-catalog.yaml；角色=池内分工；状态 active 才可派工。
+pool:
+  - member: k2.8                 # 默认施工成员（复杂实现/改造/功能闭环）
+    model: kimi-code/kimi-for-coding   # = K2.8 Preview（display_name 只是标签，政策引用 id）
+    role: primary-constructor
+    status: active
+    note: 2026-11-19 入池；K2.8/K3 事件后立此表，k3 永久禁入
+  - member: flash                # 备选成员（批量小活/摘要/独立额度兜底）
+    model: deepseek/deepseek-flash     # = DeepSeek-V4.1-Flash
+    role: batch-operator
+    status: active
+    note: deepseek 钱包额度独立；Moonshot 限流时兜底
+  - member: k2.8-low             # low 档变体（2026-11-19 宿指派驻单）：机械施工/移植/冒烟类
+    model: kimi-code/kimi-for-coding-low  # 同 K2.8 Preview 模型，default_effort=low
+    role: mechanical-constructor
+    status: active
+    note: 复杂推理勿派；外部线不顺时 W1 回收的首派成员

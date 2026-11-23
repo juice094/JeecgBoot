@@ -1,0 +1,33 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "TeamWorkbench",
+  "version": "0.2.0",
+  "identifier": "com.jeecg-team.workbench",
+  "build": {
+    "frontendDist": "../dist",
+    "devUrl": "http://127.0.0.1:3200",
+    "beforeDevCommand": "",
+    "beforeBuildCommand": "pnpm build"
+  },
+  "app": {
+    "windows": [
+      {
+        "title": "团队协作效率工作台",
+        "width": 1440,
+        "height": 900,
+        "minWidth": 1024,
+        "minHeight": 700
+      }
+    ],
+    "security": {
+      "csp": null
+    }
+  },
+  "bundle": {
+    "active": true,
+    "targets": ["nsis"],
+    "icon": ["icons/icon.ico"],
+    "shortDescription": "团队协作效率工作台",
+    "longDescription": "JeecgBoot 团队协作效率工具桌面端（Tauri 壳）"
+  }
+}

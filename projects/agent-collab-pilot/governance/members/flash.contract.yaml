@@ -1,0 +1,13 @@
+# 池成员长期契约：flash（批量小活成员，deepseek 独立额度）
+contract: "MEMBER-FLASH-2026-11-19"
+member: flash
+model: deepseek/deepseek-flash
+scope:
+  repos: [jeecg-team-web, agent-collab-pilot]
+  write: ["**/docs/**", "**/governance/**"]
+  deny: [".env", "jeecg-team-web/src/**", "jeecg-boot/**/src/**", "src-tauri/**"]   # flash 不进业务源码，只进文档/治理面（精确口径：原 **/src/** 误伤 governance/src）
+verification: L1-typecheck      # 批量活不背构建门
+confirm-gate: [git-push]
+red-lines: [no-rm-rf, recycle-bin, honest-verification]
+carry: [T0, T1]
+resume-policy: prefer-resume

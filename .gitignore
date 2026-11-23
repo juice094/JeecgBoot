@@ -15,4 +15,20 @@ os_del_doc.cmd
 derby.log
 .cursor
 .history
+.claude*.log
 .claude
+
+## 归档（已迁出的前端工程等，不参与当前构建）
+.archive/
+## 本地运行残留
+backend-8081.log*
+jeecg-team-web/.refs/
+## 后端重建备份（mvn package 前回滚保险，用完即弃）
+jeecg-boot/jar-backup-*/
+## 前端源码分发包（scripts/pack-source.bat 产出，走微信等渠道外发）
+/jeecg-team-web-src-*.zip
+
+## 代码生成器运行时产出（可再生成，不入库）
+jeecg-boot/jeecg-module-system/jeecg-system-start/config/
+/config/
+.obsidian/

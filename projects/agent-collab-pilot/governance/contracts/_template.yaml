@@ -1,0 +1,17 @@
+# 派工契约模板（M3 承载层）——复制本文件为 contracts/AGT-YYYY-NNNN.yaml 后填全。
+# 语义：规则跟着契约走，不跟着会话走；scope 只减不增（衰减原则）；红线违反=立即中止派工。
+contract: "AGT-0000-0000"
+member: ""                      # 必填，∈ members/pool.yaml 的 member 名
+model: ""                       # 必填，∈ capability-catalog.yaml 的 id（禁止 display_name）
+scope:
+  repos: []                     # 可写仓库/目录清单
+  write: []                     # 可写 glob
+  deny: []                      # 显式排除（优先级最高）
+verification: ""                # 验证分级声明，如 L1-typecheck / L2-build / L3-browser-walk
+confirm-gate: []                # 高敏操作清单：命中任一项 → AGENT_CONFIRM_REQUIRED（人类一字确认）
+red-lines: []                   # 至少含 no-rm-rf / recycle-bin；可追加
+carry: [T0, T1]                 # 本契约注入的规则层（T2 仅 workspace 系成员可加载）
+report-back:                    # 收工回报要求
+  files-touched: true           # 读过/动过的文件清单
+  conclusion: true              # 结论与状态
+  verification-result: true     # 验证分级实际结果（报告什么级说什么级）

@@ -1,5 +1,5 @@
 server:
-  port: 8080
+  port: 8081
   tomcat:
     max-swallow-size: -1
   servlet:
@@ -14,6 +14,15 @@ management:
     web:
       exposure:
         include: metrics,httpexchanges,jeecghttptrace
+
+# 接口文档分组（Knife4j 顶部下拉）：团队协作=自研 team 模块；系统管理=jeecg 原生 sys 域
+# 未分组的接口留在 default 全量组。新增自研域时在此追加。
+springdoc:
+  group-configs:
+    - group: 团队协作
+      paths-to-match: /team/**
+    - group: 系统管理
+      paths-to-match: /sys/**
 
 spring:
   flyway:
@@ -43,8 +52,8 @@ spring:
           response-format: text
   servlet:
     multipart:
-      max-file-size: 10MB
-      max-request-size: 10MB
+      max-file-size: 25MB
+      max-request-size: 25MB
   mail:
     # 定时任务发送邮件
     timeJobSend: false
@@ -164,7 +173,13 @@ spring:
         master:
           url: jdbc:mysql://127.0.0.1:3306/jeecg-boot?characterEncoding=UTF-8&useUnicode=true&useSSL=false&tinyInt1isBit=false&allowPublicKeyRetrieval=true&serverTimezone=Asia/Shanghai
           username: root
-          password: root
+          password: 123456
+          driver-class-name: com.mysql.cj.jdbc.Driver
+        # word-sync 使用独立库 db_wordsync，避免与 Jeecg 的 jeecg-boot 库混用
+        wordsync:
+          url: jdbc:mysql://127.0.0.1:3306/db_wordsync?characterEncoding=UTF-8&useUnicode=true&useSSL=false&tinyInt1isBit=false&allowPublicKeyRetrieval=true&serverTimezone=Asia/Shanghai
+          username: root
+          password: 123456
           driver-class-name: com.mysql.cj.jdbc.Driver
 #        # shardingjdbc数据源
 #        sharding-db:
@@ -177,9 +192,24 @@ spring:
       host: 127.0.0.1
       port: 6379
       password:
+  # word-sync 事件总线
+  kafka:
+    bootstrap-servers: 127.0.0.1:9092
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
+    consumer:
+      group-id: word-sync
+      auto-offset-reset: earliest
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
+      properties:
+        spring.json.trusted.packages: "*"
+    admin:
+      fail-fast: false
 #mybatis plus 设置
 mybatis-plus:
-  mapper-locations: classpath*:org/jeecg/**/xml/*Mapper.xml
+  mapper-locations: classpath*:org/jeecg/**/xml/*Mapper.xml,classpath*:mapper/*.xml
   global-config:
     # 关闭MP3.0自带的banner
     banner: false
@@ -297,8 +327,10 @@ jeecg:
     # 低代码模式（dev:开发模式，prod:发布模式——关闭所有在线开发配置能力）
     lowCodeMode: dev
     # 是否允许同一账号多地同时登录 （为 true 时允许一起登录, 为 false 时新登录挤掉旧登录）
+    # 2026-11-20 曾改 false（单点登录），实测对多浏览器/多人共用账号的测试走查不友好（互踢无法正常登录），
+    # 同日改回 true：dev 以测试友好为先。prod 当前同为 true（jeecg 默认），如需单点收口在 application-prod.yml 改 false
     is-concurrent: true
-    # 登录是否启用验证码（team-web 前端登录页未做验证码，开发期关闭；prod 配置不受影响）
+    # 登录是否启用验证码（team-web 前端登录页未做验证码，开发期关闭；docs/13 §五基线=本机关，2026-11-17 由 true 改回 false，prod 配置不受影响）
     enableLoginCaptcha: false
     # 是否开启三级等保强密码校验（true 开启强密码模式，false 使用简单密码规则）
     enableStrongPwd: false
@@ -326,6 +358,8 @@ jeecg:
     excludeUrls: /test/jeecgDemo/demo3,/test/jeecgDemo/redisDemo/**,/bigscreen/category/**,/bigscreen/visual/**,/bigscreen/map/**,/jmreport/bigscreen2/**
   # 短信发送方式 aliyun阿里云短信 tencent腾讯云短信
   smsSendType: aliyun
+  # 短信 mock（dev only：不发真实短信，验证码打印到后端日志，配合忘记密码流程本机联调；生产严禁开启）
+  smsMock: true
   #阿里云oss存储和大鱼短信秘钥配置
   oss:
     accessKey: ??
@@ -470,3 +504,19 @@ justauth:
     type: default
     prefix: 'demo::'
     timeout: 1h
+
+# ============================================================
+# word-sync：对象存储与 OnlyOffice
+# 注意：Jeecg 原有 jeecg.minio 是另一套上传配置，下面是最外层 minio
+# ============================================================
+minio:
+  endpoint: http://127.0.0.1:9002
+  access-key: minioadmin
+  secret-key: minioadmin
+  bucket: wordsync
+
+onlyoffice:
+  server-url: http://127.0.0.1
+  # OnlyOffice 容器访问宿主机的 Jeecg 后端（8081 + /jeecg-boot + /word-sync）
+  document-base-url: http://host.docker.internal:8081/jeecg-boot/word-sync
+  callback-base-url: http://host.docker.internal:8081/jeecg-boot/word-sync

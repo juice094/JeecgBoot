@@ -1,0 +1,65 @@
+# capability-catalog.yaml —— 由 capability_catalog.py 从 config.toml 生成，禁手改
+# 政策只允许引用 id，禁止引用 display_name（K2.8/K3 事件根因防线）
+generated: 2026-11-19
+models:
+  - id: kimi-code/kimi-for-coding
+    display: K2.8 Preview
+    provider: managed:kimi-code
+    model: kimi-for-coding
+    context: 1048576
+    default_effort: high
+  - id: kimi-code/kimi-for-coding-low
+    display: K2.8 Preview (low)
+    provider: managed:kimi-code
+    model: kimi-for-coding
+    context: 1048576
+    default_effort: low
+  - id: kimi-code/k3
+    display: K3
+    provider: managed:kimi-code
+    model: k3
+    context: 1048576
+    default_effort: high
+  - id: deepseek/deepseek-flash
+    display: DeepSeek-V4.1-Flash
+    provider: deepseek
+    model: deepseek-flash
+    context: 1048576
+    default_effort: high
+  - id: deepseek/deepseek-v4-pro
+    display: DeepSeek-V4-Pro
+    provider: deepseek
+    model: deepseek-v4-pro
+    context: 1048576
+    default_effort: high
+  - id: kimi-code/kimi-for-coding-highspeed
+    display: K2.7 Code Highspeed
+    provider: managed:kimi-code
+    model: kimi-for-coding-highspeed
+    context: 262144
+  - id: kimi-code/k3-256k
+    display: K3-256k
+    provider: managed:kimi-code
+    model: k3-256k
+    context: 262144
+    default_effort: high
+  - id: ofm/mimo-v2.6-flash-free
+    provider: ofm
+    model: our-free-model/mimo-v2.6-flash-free
+    context: 131072
+  - id: ofm/deepseek-v4.1-flash-free
+    provider: ofm
+    model: our-free-model/deepseek-v4.1-flash-free
+    context: 131072
+  - id: kimi-code/k3.1-pro
+    display: K3.1 Pro
+    provider: managed:kimi-code
+    model: k3.1-pro
+    context: 1048576
+    default_effort: high
+  - id: kimi-code/k3.1-pro-highspeed
+    display: K3.1 Pro Highspeed 2x Usage Cost
+    provider: managed:kimi-code
+    model: k3.1-pro-highspeed
+    context: 1048576
+    default_effort: high

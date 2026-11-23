@@ -1,0 +1,14 @@
+# 池成员长期契约：k2.8（默认施工成员）
+# 派工给 k2.8 时以此契约为基底叠加任务单，无需重述本文件已有条款。
+contract: "MEMBER-K2.8-2026-11-19"
+member: k2.8
+model: kimi-code/kimi-for-coding
+scope:
+  repos: [jeecg-team-web, jeecg-boot, agent-collab-pilot]
+  write: ["**/src/**", "**/docs/**", "**/scripts/**", "**/governance/**"]
+  deny: [".env", "**/target/**", "**/node_modules/**", ".kimi_openclaw/workspace/agents/**"]
+verification: L2-build          # 默认验证级；任务单可上调 L3 或下调 L1 但须写明理由
+confirm-gate: [git-push, credential-touch, flyway-execute, backend-restart]
+red-lines: [no-rm-rf, recycle-bin, no-force-push, honest-verification]
+carry: [T0, T1]                 # 不加载 T2（workspace-kimicode 人格层）——k2.8 是池成员不是 Gray 线
+resume-policy: prefer-resume    # 命中台账的派工优先 resume，不新开

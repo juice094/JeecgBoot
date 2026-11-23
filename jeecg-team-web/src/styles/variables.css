@@ -1,0 +1,197 @@
+/* 主题变量 —— 设计令牌（docs/13 §三.4，issue #11）
+ * 2026-11-17 全量重构：补齐中性色阶、主色阶、语义色阶，
+ * 扩展圆角/阴影/字号/间距/过渡/层级阶梯。所有旧变量名保留，避免破坏存量页面。
+ */
+:root {
+  /* 默认主题 = 深色（宿评审基线）。浅色令牌见文件尾 [data-theme='light'] 覆盖块。 */
+  color-scheme: dark;
+
+  /* ---------- 主色（品牌青绿，深色模式提亮） ----------
+   * 原 #127a7b 在 #0d1117 上对比不足，提亮到 #2ea69a 系。
+   */
+  --primary-50: #0d2b2a;
+  --primary-100: #113a38;
+  --primary-200: #17514e;
+  --primary-300: #1d6b66;
+  --primary-400: #248a82;
+  --primary: #2ea69a;
+  --primary-600: #3db9ad;
+  --primary-700: #6acfc5;
+  --primary-hover: var(--primary-600);
+  --primary-active: var(--primary-400);
+  --primary-light: var(--primary-50);
+
+  /* ---------- 中性色阶（GitHub Dark 实测） ---------- */
+  --gray-50: #161b22;
+  --gray-100: #21262d;
+  --gray-200: #30363d;
+  --gray-300: #3d444d;
+  --gray-400: #6e7681;
+  --gray-500: #8b949e;
+  --gray-600: #a8b0b9;
+  --gray-700: #c9d1d9;
+  --gray-800: #e6edf3;
+  --gray-900: #f0f6fc;
+
+  /* ---------- 语义色（对齐 GitHub Primer dark 实测值；浅色主题见文件尾覆盖块） ----------
+   * 三件套约定：文字用 -700 档，底色用 -50 档，描边用 -border 40% 透明。
+   */
+  --success: #3fb950;
+  --success-50: #0f2419;
+  --success-700: #7ee787;
+  --success-border: #3fb95066;
+  --warning: #d29922;
+  --warning-50: #2b2110;
+  --warning-700: #e3b341;
+  --warning-border: #d2992266;
+  --danger: #f85149;
+  --danger-50: #2d1618;
+  --danger-700: #ff7b72;
+  --danger-border: #f8514966;
+  --info: #8b949e;
+
+  /* ---------- 背景 / 文字 / 边框（GitHub Dark 实测） ---------- */
+  --bg-body: #0d1117;
+  --bg-card: #161b22;
+  --bg-subtle: var(--gray-50);
+  --bg-muted: var(--gray-100);
+  --text-main: #e6edf3;
+  --text-regular: #c9d1d9;
+  --text-muted: #8b949e;
+  --text-placeholder: #6e7681;
+  --border-color: #30363d;
+  --border-color-light: #21262d;
+  --border-strong: #3d444d;
+  --primary-border: #2ea69a66;
+  --overlay-backdrop: rgba(1, 4, 9, 0.65);
+
+  /* ---------- 布局尺寸 ---------- */
+  --sidebar-width: 230px;
+  --header-height: 60px;
+  --content-max-width: 1440px;
+
+  /* ---------- 圆角阶梯 ---------- */
+  --radius-xs: 2px;
+  --radius-sm: 4px;
+  --radius-md: 6px;
+  --radius-lg: 8px;
+  --radius-xl: 12px;
+  --radius-full: 999px;
+
+  /* ---------- 阴影阶梯（深色下需更重才可见） ---------- */
+  --shadow-xs: 0 1px 2px rgba(1, 4, 9, 0.3);
+  --shadow-sm: 0 1px 3px rgba(1, 4, 9, 0.4), 0 1px 2px rgba(1, 4, 9, 0.3);
+  --shadow-md: 0 4px 12px rgba(1, 4, 9, 0.5);
+  --shadow-lg: 0 10px 30px rgba(1, 4, 9, 0.7);
+  --shadow-popover: 0 8px 24px rgba(1, 4, 9, 0.6);
+  --shadow-card: var(--shadow-xs);
+
+  /* ---------- 字号阶梯 ---------- */
+  --font-size-2xs: 10px;
+  --font-size-xs: 11px;
+  --font-size-sm: 12px;
+  --font-size-md: 13px;
+  --font-size-base: 14px;
+  --font-size-lg: 16px;
+  --font-size-xl: 18px;
+  --font-size-2xl: 20px;
+  --font-size-3xl: 24px;
+
+  /* ---------- 间距阶梯 ---------- */
+  --spacing-xs: 4px;
+  --spacing-sm: 8px;
+  --spacing-md: 12px;
+  --spacing-lg: 16px;
+  --spacing-xl: 20px;
+  --spacing-2xl: 24px;
+  --spacing-3xl: 32px;
+
+  /* ---------- 过渡 ---------- */
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-in-out: cubic-bezier(0.65, 0, 0.35, 1);
+  --duration-fast: 0.12s;
+  --duration-normal: 0.2s;
+  --duration-slow: 0.3s;
+
+  /* ---------- 层级 ---------- */
+  --z-dropdown: 100;
+  --z-sticky: 200;
+  --z-modal: 1000;
+  --z-toast: 2000;
+}
+
+/* =============================================================================
+ * 浅色主题（可选切换，TopHeader 主题钮；默认深色见 :root）
+ * 2026-11-17 对比度专项修复（宿评审，五处）：
+ *   1. gray-400 #b1b5be → #98a0ab：列表状态符号在 #fff 上从"几乎看不见"到可读；
+ *   2. 语义色用 Primer light 实测值：标签深字浅底，三件套对比成立；
+ *   3. --bg-body #e9edf3：与 gray-50(#f7f8fa) 拉开两档，看板列层次可见；
+ *   4. --border-color #c6cdd6：卡片边框从"像没有"到可辨；
+ *   5. --overlay-backdrop 加深 + 遮罩压暗：弹窗与页面有了纵深。
+ * ============================================================================= */
+[data-theme='light'] {
+  color-scheme: light;
+
+  /* ---------- 主色（品牌青绿，浅色原值） ---------- */
+  --primary-50: #e6f2f2;
+  --primary-100: #cce5e5;
+  --primary-200: #99cbcb;
+  --primary-300: #66b0b0;
+  --primary-400: #339696;
+  --primary: #127a7b;
+  --primary-600: #0e6162;
+  --primary-700: #0a4d4e;
+  --primary-hover: var(--primary-600);
+  --primary-active: var(--primary-700);
+  --primary-light: var(--primary-50);
+  --primary-border: rgba(18, 122, 123, 0.4);
+
+  /* ---------- 中性色阶（中段加深一档，修复浅底对比度） ---------- */
+  --gray-50: #f7f8fa;
+  --gray-100: #f0f2f5;
+  --gray-200: #e4e7ed;
+  --gray-300: #d4d7de;
+  --gray-400: #98a0ab;
+  --gray-500: #7d828c;
+  --gray-600: #62666e;
+  --gray-700: #4e5158;
+  --gray-800: #35383e;
+  --gray-900: #26282c;
+
+  /* ---------- 语义色（Primer light 实测值） ---------- */
+  --success: #1a7f37;
+  --success-50: #dafbe1;
+  --success-700: #0f5323;
+  --success-border: #4ac26b66;
+  --warning: #9a6700;
+  --warning-50: #fff8c5;
+  --warning-700: #6b4700;
+  --warning-border: #d4a72c66;
+  --danger: #d1242f;
+  --danger-50: #ffebe9;
+  --danger-700: #9e1c25;
+  --danger-border: #ff818266;
+  --info: #59636e;
+
+  /* ---------- 背景 / 文字 / 边框 ---------- */
+  --bg-body: #e9edf3;
+  --bg-card: #ffffff;
+  --bg-subtle: var(--gray-50);
+  --bg-muted: var(--gray-100);
+  --text-main: var(--gray-900);
+  --text-regular: var(--gray-700);
+  --text-muted: #59636e;
+  --text-placeholder: var(--gray-400);
+  --border-color: #c6cdd6;
+  --border-color-light: #d9dee5;
+  /* 控件边框（按钮/输入框/下拉）：浅色调浅一档，避免 #99a1ac 过重（走查实测） */
+  --border-strong: #a8b0bb;
+  --overlay-backdrop: rgba(31, 35, 40, 0.45);
+
+  /* ---------- 阴影阶梯（浅色回原值系） ---------- */
+  --shadow-xs: 0 1px 2px rgba(31, 35, 40, 0.05);
+  --shadow-sm: 0 1px 3px rgba(31, 35, 40, 0.08), 0 1px 2px rgba(31, 35, 40, 0.05);
+  --shadow-md: 0 4px 12px rgba(31, 35, 40, 0.1);
+  --shadow-lg: 0 10px 30px rgba(31, 35, 40, 0.16);
+  --shadow-popover: 0 8px 24px rgba(31, 35, 40, 0.14);
+}

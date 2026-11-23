@@ -47,6 +47,35 @@
             <artifactId>jeecg-module-speech</artifactId>
             <version>${jeecgboot.version}</version>
         </dependency>
+        <!-- 团队协作业务模块（任务协作等，issue #2/#10） -->
+        <dependency>
+            <groupId>org.jeecgframework.boot3</groupId>
+            <artifactId>jeecg-module-team</artifactId>
+            <version>${jeecgboot.version}</version>
+        </dependency>
+        <!-- OA 邮件体系模块当前停用：模块仍保留在 aggregator 中独立编译，
+             但不注册进 jeecg-system-start 运行时，避免 mailSyncScheduler 等未完成链路阻塞启动。 -->
+        <!--
+        <dependency>
+            <groupId>org.jeecgframework.boot3</groupId>
+            <artifactId>jeecg-module-mail</artifactId>
+            <version>${jeecgboot.version}</version>
+        </dependency>
+        -->
+        <!-- 流程域模块（Flowable 8.0.0 引擎）。
+             副作用声明（W1-T4）：注册后下次启动引擎将自检并建/续 jeecg-boot 库 39 张 act_* 表
+             （已存在则幂等跳过）；流程定义由 flow 模块编程式部署（FlowDeploymentConfig）。 -->
+        <dependency>
+            <groupId>org.jeecgframework.boot3</groupId>
+            <artifactId>jeecg-module-flow</artifactId>
+            <version>${jeecgboot.version}</version>
+        </dependency>
+        <!-- Word 文档同步业务（原独立 word-sync 工程，已合并为 Jeecg 模块） -->
+        <dependency>
+            <groupId>org.jeecgframework.boot3</groupId>
+            <artifactId>jeecg-module-word-sync</artifactId>
+            <version>${jeecgboot.version}</version>
+        </dependency>
         
         <!-- flyway 数据库自动升级 -->
         <dependency>

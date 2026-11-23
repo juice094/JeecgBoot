@@ -402,7 +402,7 @@ public class LoginController {
 					baseCommonService.addLog("手机号已经注册，请直接登录！", CommonConstant.LOG_TYPE_1, null);
 					return result;
 				}
-				b = DySmsHelper.sendSms(mobile, obj, DySmsEnum.REGISTER_TEMPLATE_CODE);
+				b = sendSmsWithMockSupport(mobile, obj, DySmsEnum.REGISTER_TEMPLATE_CODE);
 			}else {
 				//登录模式，校验用户有效性
 				SysUser sysUser = sysUserService.getUserByPhone(mobile);
@@ -421,10 +421,10 @@ public class LoginController {
 				 */
 				if (CommonConstant.SMS_TPL_TYPE_0.equals(smsmode)) {
 					//登录模板
-					b = DySmsHelper.sendSms(mobile, obj, DySmsEnum.LOGIN_TEMPLATE_CODE);
+					b = sendSmsWithMockSupport(mobile, obj, DySmsEnum.LOGIN_TEMPLATE_CODE);
 				} else if(CommonConstant.SMS_TPL_TYPE_2.equals(smsmode)) {
 					//忘记密码模板
-					b = DySmsHelper.sendSms(mobile, obj, DySmsEnum.FORGET_PASSWORD_TEMPLATE_CODE);
+					b = sendSmsWithMockSupport(mobile, obj, DySmsEnum.FORGET_PASSWORD_TEMPLATE_CODE);
                     // 代码逻辑说明: 【issues/8567】严重：修改密码存在水平越权问题。---
                     if(b){
                         String username = sysUser.getUsername();
@@ -580,6 +580,19 @@ public class LoginController {
 		result.setResult(obj);
 		result.success("登录成功");
 		return result;
+	}
+
+	/**
+	 * 短信发送（支持 dev mock）：jeecg.smsMock=true 时不走真实短信通道，
+	 * 验证码以 warn 日志打印到后端控制台，仅供开发环境联调忘记密码/短信登录流程。
+	 * ponytail: 升级路径 = 配置真实短信密钥后将 smsMock 置回 false
+	 */
+	private boolean sendSmsWithMockSupport(String mobile, JSONObject obj, DySmsEnum templateEnum) throws ClientException {
+		if (Boolean.TRUE.equals(jeecgBaseConfig.getSmsMock())) {
+			log.warn("[SMS-MOCK] 手机号:{} 模板:{} 验证码:{}", mobile, templateEnum.getTemplateCode(), obj.getString("code"));
+			return true;
+		}
+		return DySmsHelper.sendSms(mobile, obj, templateEnum);
 	}
 
 	/**
@@ -910,7 +923,7 @@ public class LoginController {
 		JSONObject obj = new JSONObject();
 		obj.put("code", captcha);
 		try {
-			boolean b = DySmsHelper.sendSms(mobile, obj, DySmsEnum.CHANGE_PASSWORD_TEMPLATE_CODE);
+			boolean b = sendSmsWithMockSupport(mobile, obj, DySmsEnum.CHANGE_PASSWORD_TEMPLATE_CODE);
 			if (!b) {
 				result.setMessage("短信验证码发送失败,请稍后重试");
 				result.setSuccess(false);
