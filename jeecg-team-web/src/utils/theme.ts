@@ -6,6 +6,9 @@ import { THEME_DEFAULT, THEME_STORAGE_KEY } from '@/constants/app';
 
 export type Theme = 'light' | 'dark';
 
+/** 主题变化事件：iframe/跨组件需要感知全局主题时监听此事件 */
+export const THEME_CHANGE_EVENT = 'team-theme-change';
+
 function normalize(value: string | null): Theme {
   return value === 'light' ? 'light' : THEME_DEFAULT;
 }
@@ -18,6 +21,7 @@ export function currentTheme(): Theme {
 export function applyTheme(theme: Theme): void {
   document.documentElement.dataset.theme = theme;
   localStorage.setItem(THEME_STORAGE_KEY, theme);
+  window.dispatchEvent(new CustomEvent(THEME_CHANGE_EVENT, { detail: { theme } }));
 }
 
 export function initTheme(): void {
