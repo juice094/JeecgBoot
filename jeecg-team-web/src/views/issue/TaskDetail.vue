@@ -5,7 +5,7 @@
 import { computed, onMounted, ref } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import {
-  PhArrowLeft, PhArrowCounterClockwise, PhArrowsLeftRight, PhChatCircle, PhGearSix, PhPlusCircle, PhTrash,
+  PhArrowLeft, PhArrowCounterClockwise, PhArrowsLeftRight, PhChatCircle, PhCheckCircle, PhGearSix, PhPlusCircle, PhTrash, PhXCircle,
 } from '@phosphor-icons/vue';
 import {
   fetchTaskDetail, addTaskComment, changeTaskStatus, deleteTask,
@@ -68,31 +68,44 @@ const taskLabel = computed(() => {
   return '#' + t.id.slice(0, 7);
 });
 
-/** 事件动作 -> 中文文案 */
-const ACTION_TEXT: Record<string, string> = {
-  create: '创建了此任务',
-  submit: '提交了任务',
-  change_status: '变更了状态',
-  approve: '通过了审批',
-  reject: '拒绝了审批',
+/** 事件动作 → 文案 / 图标 / 动作着色（对齐 GitHub 时间线「动作着色」呈现） */
+const ACTION_META: Record<string, { text: string; color: string; icon: unknown }> = {
+  create: { text: '创建了此任务', color: 'var(--success)', icon: PhPlusCircle },
+  submit: { text: '提交了任务', color: 'var(--info)', icon: PhArrowCounterClockwise },
+  change_status: { text: '变更了状态', color: 'var(--primary)', icon: PhArrowsLeftRight },
+  approve: { text: '通过了审批', color: 'var(--success)', icon: PhCheckCircle },
+  reject: { text: '拒绝了审批', color: 'var(--danger)', icon: PhXCircle },
+  return: { text: '退回了任务', color: 'var(--warning)', icon: PhArrowCounterClockwise },
+  cancel: { text: '撤销了任务', color: 'var(--gray-500)', icon: PhXCircle },
+  resubmit: { text: '重提了任务', color: 'var(--info)', icon: PhArrowCounterClockwise },
 };
 
 function eventText(ev: TaskEvent): string {
-  const base = ACTION_TEXT[ev.action] || ev.action;
-  if (ev.action === 'change_status' && ev.fromValue && ev.toValue) {
-    return '将状态从 ' + statusLabel(ev.fromValue) + ' 变更为 ' + statusLabel(ev.toValue);
-  }
-  return base;
+  return ACTION_META[ev.action]?.text || ev.action;
 }
 
-/** 事件动作 -> 徽章图标（comment 事件不渲染：由评论卡片自身代表） */
-const ACTION_ICON: Record<string, unknown> = {
-  create: PhPlusCircle,
-  change_status: PhArrowsLeftRight,
+/** 事件动作 → 徽章图标与着色 */
+function eventIcon(ev: TaskEvent): unknown {
+  return ACTION_META[ev.action]?.icon || PhArrowCounterClockwise;
+}
+
+function eventColor(ev: TaskEvent): string {
+  return ACTION_META[ev.action]?.color || 'var(--text-muted)';
+}
+
+/** 状态码 → 胶囊样式类（时间线 from→to 着色） */
+const STATUS_CHIP: Record<string, string> = {
+  todo: 'tag--neutral',
+  doing: 'tag--info',
+  done: 'tag--success',
 };
 
-function eventIcon(ev: TaskEvent): unknown {
-  return ACTION_ICON[ev.action] || PhArrowCounterClockwise;
+function statusChip(code: string): string {
+  return STATUS_CHIP[code] || 'tag--neutral';
+}
+
+function isStatusChange(ev: TaskEvent): boolean {
+  return ev.action === 'change_status' && !!ev.fromValue && !!ev.toValue;
 }
 
 function statusLabel(code: string): string {
@@ -220,10 +233,15 @@ function back() {
           <template v-for="node in nodes" :key="nodeKey(node)">
             <TimelineEvent v-if="node.kind === 'event'">
               <template #icon>
-                <component :is="eventIcon(node.event)" :size="14" />
+                <component :is="eventIcon(node.event)" :size="14" :color="eventColor(node.event)" />
               </template>
               <strong>{{ node.event.operatorName || node.event.operatorId || '系统' }}</strong>
-              {{ eventText(node.event) }}
+              <span :style="{ color: eventColor(node.event) }">{{ eventText(node.event) }}</span>
+              <template v-if="isStatusChange(node.event)">
+                <span class="tag" :class="statusChip(node.event.fromValue!)">{{ statusLabel(node.event.fromValue!) }}</span>
+                →
+                <span class="tag" :class="statusChip(node.event.toValue!)">{{ statusLabel(node.event.toValue!) }}</span>
+              </template>
               <span class="timeline__ago">{{ timeAgo(node.event.createTime) }}</span>
             </TimelineEvent>
 
@@ -391,6 +409,9 @@ function back() {
 .timeline__ago {
   color: var(--text-muted);
   margin-left: 6px;
+}
+.timeline .tag {
+  margin: 0 2px;
 }
 
 /* 评论编辑器 */

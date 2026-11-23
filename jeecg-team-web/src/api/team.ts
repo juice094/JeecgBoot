@@ -49,6 +49,31 @@ export function fetchTaskBoard() {
   return http.get<any, { result: TaskBoard }>('/team/task/board');
 }
 
+/** GET /team/task/list 分页参数（QueryGenerator 口径，见 TeamTaskController#queryPageList） */
+export interface TaskListParams {
+  /** 状态过滤：单值等值；多值逗号分隔走 IN（如 open 口径 'todo,doing'，closed 口径 'done'） */
+  status?: string;
+  assigneeId?: string;
+  priority?: string;
+  tag?: string;
+  createBy?: string;
+  /** 标题模糊：QueryGenerator 以值含 * 判定 LIKE，调用方需自带通配（如 '*关键字*'） */
+  title?: string;
+  /** 租户内序号精确匹配（#编号搜索） */
+  taskNo?: number;
+  /** 排序字段（库列名，如 create_time / due_date；优先级为中文枚举，语义序只能客户端排） */
+  column?: string;
+  /** 排序方向：asc / desc */
+  order?: string;
+  pageNo?: number;
+  pageSize?: number;
+}
+
+/** 任务分页（服务端筛选/排序，records/total 口径同 /list 其他端点） */
+export function listTasks(params: TaskListParams) {
+  return http.get<any, { result: PageResult<Task> }>('/team/task/list', { params });
+}
+
 export function addTask(body: Partial<Task>) {
   return http.post('/team/task/add', body);
 }
