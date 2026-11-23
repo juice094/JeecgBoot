@@ -28,6 +28,14 @@
             <artifactId>flowable-spring-boot-starter-process</artifactId>
             <version>${flowable.version}</version>
         </dependency>
+        <!-- 引擎单元测试需嵌入式数据库（Flowable 引擎无内存态，必须落库）；
+             H2 为 Flowable 官方文档默认内存库，仅 test 作用域 -->
+        <dependency>
+            <groupId>com.h2database</groupId>
+            <artifactId>h2</artifactId>
+            <version>2.3.232</version>
+            <scope>test</scope>
+        </dependency>
     </dependencies>
 
 </project>
