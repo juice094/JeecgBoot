@@ -15,6 +15,7 @@ import org.apache.shiro.subject.Subject;
 import org.jeecg.common.api.vo.Result;
 import org.jeecg.modules.team.entity.TeamTask;
 import org.jeecg.modules.team.service.ITeamTaskService;
+import org.jeecg.modules.team.service.impl.TeamAuditLogger;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 import org.mockito.MockedStatic;
@@ -39,6 +40,8 @@ class TeamTaskControllerGuardTest {
     private TeamTaskController newController(ITeamTaskService svc) {
         TeamTaskController c = new TeamTaskController();
         ReflectionTestUtils.setField(c, "teamTaskService", svc);
+        // M3 起 add() 在建单后写审计时间线（controller 持有 auditLogger），未注入即 NPE
+        ReflectionTestUtils.setField(c, "auditLogger", mock(TeamAuditLogger.class));
         return c;
     }
 

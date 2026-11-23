@@ -22,6 +22,7 @@ import org.jeecg.modules.team.enums.TeamAuditAction;
 import org.jeecg.modules.team.enums.TeamAuditBizType;
 import org.jeecg.modules.team.mapper.TeamAuditLogMapper;
 import org.jeecg.modules.team.mapper.TeamTaskMapper;
+import org.jeecg.modules.team.service.ITeamTaskCommentService;
 import org.jeecg.modules.team.service.ITeamTaskService;
 import org.junit.jupiter.api.Assumptions;
 import org.junit.jupiter.api.BeforeAll;
@@ -137,6 +138,13 @@ class TeamStatusFlowTransactionTest {
         @Bean
         public TeamOwnershipGuard teamOwnershipGuard() {
             return new TeamOwnershipGuard();
+        }
+
+        // M3 评论线引入：TeamTaskServiceImpl 持有 ITeamTaskCommentService；
+        // changeStatus 不使用它，mock 默认值即可满足依赖注入
+        @Bean
+        public ITeamTaskCommentService teamTaskCommentService() {
+            return mock(ITeamTaskCommentService.class);
         }
     }
 
