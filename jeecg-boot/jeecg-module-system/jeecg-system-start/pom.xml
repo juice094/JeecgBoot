@@ -10,7 +10,24 @@
     <modelVersion>4.0.0</modelVersion>
 
     <artifactId>jeecg-system-start</artifactId>
-    
+
+    <dependencyManagement>
+        <dependencies>
+            <!-- 统一 spring-ai 版本到 2.0.2。
+                 jimureport-spring-boot4-starter 会传递 spring-ai-openai / client-chat 2.0.0，
+                 其深度比 speech 模块的 2.0.2 更近，Maven 就近原则会让 2.0.0 胜出，
+                 而 2.0.0 的 spring-ai-model 缺少 audio/transcription/observation 包，
+                 导致 OpenAiAudioTranscriptionAutoConfiguration 创建 Bean 时 ClassNotFoundException。 -->
+            <dependency>
+                <groupId>org.springframework.ai</groupId>
+                <artifactId>spring-ai-bom</artifactId>
+                <version>2.0.2</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
+        </dependencies>
+    </dependencyManagement>
+
     <dependencies>
         <!-- SYSTEM 系统管理模块 -->
         <dependency>
@@ -22,6 +39,12 @@
         <dependency>
             <groupId>org.jeecgframework.boot3</groupId>
             <artifactId>jeecg-module-demo</artifactId>
+            <version>${jeecgboot.version}</version>
+        </dependency>
+        <!-- SPEECH 模块 - 录音转写与 AI 会议纪要 -->
+        <dependency>
+            <groupId>org.jeecgframework.boot3</groupId>
+            <artifactId>jeecg-module-speech</artifactId>
             <version>${jeecgboot.version}</version>
         </dependency>
         

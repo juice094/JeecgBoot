@@ -23,6 +23,24 @@ spring:
     locations: classpath:flyway/sql/mysql
     # 是否关闭要清除已有库下的表功能,生产环境必须为true,否则会删库，非常重要！！！
     clean-disabled: true
+  # 录音转写与会议纪要：均使用本地 OpenAI 兼容服务，不产生调用费用
+  ai:
+    openai:
+      # 会议纪要走本地 Ollama
+      base-url: http://127.0.0.1:11434/v1
+      api-key: ollama
+      chat:
+        options:
+          model: qwen2.5:3b
+          temperature: 0.3
+      # 语音转写走本地 faster-whisper
+      audio:
+        transcription:
+          base-url: http://127.0.0.1:8000
+          api-key: local
+          model: faster-whisper
+          language: zh
+          response-format: text
   servlet:
     multipart:
       max-file-size: 10MB
@@ -280,8 +298,8 @@ jeecg:
     lowCodeMode: dev
     # 是否允许同一账号多地同时登录 （为 true 时允许一起登录, 为 false 时新登录挤掉旧登录）
     is-concurrent: true
-    # 登录是否启用验证码
-    enableLoginCaptcha: true
+    # 登录是否启用验证码（team-web 前端登录页未做验证码，开发期关闭；prod 配置不受影响）
+    enableLoginCaptcha: false
     # 是否开启三级等保强密码校验（true 开启强密码模式，false 使用简单密码规则）
     enableStrongPwd: false
   # 签名密钥串(前后端要一致，正式发布请自行修改)
