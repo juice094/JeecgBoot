@@ -16,6 +16,12 @@ public class FlowWebConverterConfig {
 
     @Bean
     public Converter<String, FlowApproveAction> flowApproveActionConverter() {
-        return source -> FlowApproveAction.valueOf(source.trim().toUpperCase(Locale.ROOT));
+        // 不可用 lambda：Converter 泛型形参在 lambda 上擦除，ConversionService 无法推断 S/T 会启动失败
+        return new Converter<String, FlowApproveAction>() {
+            @Override
+            public FlowApproveAction convert(String source) {
+                return FlowApproveAction.valueOf(source.trim().toUpperCase(Locale.ROOT));
+            }
+        };
     }
 }
