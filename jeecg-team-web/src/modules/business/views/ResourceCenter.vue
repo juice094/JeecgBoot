@@ -37,7 +37,7 @@ onBeforeUnmount(() => window.removeEventListener(THEME_CHANGE_EVENT, onThemeChan
     <div class="card-header resource-embed-header">
       <span class="card-title">资料中心 / 共享文档</span>
       <div class="resource-embed-actions">
-        <span class="resource-embed-tip">Word 文档同步服务</span>
+        <span class="resource-embed-badge">Word 文档同步服务</span>
         <a class="btn-text" :href="externalUrl" target="_blank" rel="noopener">新窗口打开</a>
       </div>
     </div>
@@ -73,9 +73,14 @@ onBeforeUnmount(() => window.removeEventListener(THEME_CHANGE_EVENT, onThemeChan
   gap: 14px;
 }
 
-.resource-embed-tip {
+.resource-embed-badge {
   font-size: 12px;
-  color: var(--text-muted);
+  color: var(--primary);
+  background: var(--primary-light);
+  border: 1px solid var(--primary-border);
+  border-radius: 999px;
+  padding: 3px 10px;
+  white-space: nowrap;
 }
 
 .resource-embed-frame {
