@@ -20,4 +20,12 @@ public interface ITeamBugService extends IService<TeamBug> {
      * 逻辑删除（F-09：限提交人或管理员；D-69a：deleted=1 不物理删）
      */
     void deleteOne(String id);
+
+    /**
+     * 生成下一个缺陷序号（当前最大值 + 1，#B-n 展示编号；V3.9.6_16）
+     * 并发下依赖 uk_team_bug_no 唯一索引兜底
+     *
+     * @return 新序号
+     */
+    int nextBugNo();
 }

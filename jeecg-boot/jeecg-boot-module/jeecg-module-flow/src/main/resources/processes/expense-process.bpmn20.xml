@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<definitions xmlns="http://www.omg.org/spec/BPMN/20100524/MODEL"
+             xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+             xmlns:flowable="http://flowable.org/bpmn"
+             targetNamespace="http://flowable.org/bpmn">
+    <!--
+      报销审批流程（W2）：部门主管 -> 副总 二级审批，任一级驳回直达 rejectedEnd。
+      审批意见载体：流程变量 approved（Boolean，办理时写入）。
+      办理人来源：启动变量 deptManager / vp（本波不接组织链映射，W3 再议，属显式简化）。
+    -->
+    <process id="expenseProcess" name="报销审批流程" isExecutable="true">
+        <startEvent id="startEvent" name="提交报销"/>
+        <userTask id="deptApprove" name="部门主管审批" flowable:assignee="${deptManager}"/>
+        <exclusiveGateway id="deptGateway" name="主管审批结果"/>
+        <userTask id="vpApprove" name="副总审批" flowable:assignee="${vp}"/>
+        <exclusiveGateway id="vpGateway" name="副总审批结果"/>
+        <endEvent id="approvedEnd" name="审批通过"/>
+        <endEvent id="rejectedEnd" name="已驳回"/>
+        <sequenceFlow id="flowStartToDept" sourceRef="startEvent" targetRef="deptApprove"/>
+        <sequenceFlow id="flowDeptToGateway" sourceRef="deptApprove" targetRef="deptGateway"/>
+        <sequenceFlow id="flowDeptApproved" sourceRef="deptGateway" targetRef="vpApprove">
+            <conditionExpression xsi:type="tFormalExpression">${approved}</conditionExpression>
+        </sequenceFlow>
+        <sequenceFlow id="flowDeptRejected" sourceRef="deptGateway" targetRef="rejectedEnd">
+            <conditionExpression xsi:type="tFormalExpression">${not approved}</conditionExpression>
+        </sequenceFlow>
+        <sequenceFlow id="flowVpToGateway" sourceRef="vpApprove" targetRef="vpGateway"/>
+        <sequenceFlow id="flowVpApproved" sourceRef="vpGateway" targetRef="approvedEnd">
+            <conditionExpression xsi:type="tFormalExpression">${approved}</conditionExpression>
+        </sequenceFlow>
+        <sequenceFlow id="flowVpRejected" sourceRef="vpGateway" targetRef="rejectedEnd">
+            <conditionExpression xsi:type="tFormalExpression">${not approved}</conditionExpression>
+        </sequenceFlow>
+    </process>
+</definitions>

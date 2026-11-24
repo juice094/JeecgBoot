@@ -2,6 +2,7 @@ package org.jeecg.modules.team.service.impl;
 
 import java.time.LocalDate;
 import java.time.ZoneId;
+import java.util.Collections;
 import java.util.Date;
 import java.util.List;
 
@@ -17,6 +18,7 @@ import org.jeecg.modules.team.mapper.TeamTaskMapper;
 import org.jeecg.modules.team.entity.TeamAuditLog;
 import org.jeecg.modules.team.mapper.TeamAuditLogMapper;
 import org.jeecg.modules.team.service.ITeamTaskCommentService;
+import org.jeecg.modules.team.service.ITeamTaskDependencyService;
 import org.jeecg.modules.team.service.ITeamTaskService;
 import org.jeecg.modules.team.vo.TeamTaskBoard;
 import org.jeecg.modules.team.vo.TeamTaskDetail;
@@ -53,6 +55,9 @@ public class TeamTaskServiceImpl extends ServiceImpl<TeamTaskMapper, TeamTask> i
     @Autowired
     private TeamAuditLogMapper auditLogMapper;
 
+    @Autowired
+    private ITeamTaskDependencyService dependencyService;
+
     @Override
     @Transactional(rollbackFor = Exception.class)
     public void changeStatus(String id, String status) {
@@ -74,6 +79,10 @@ public class TeamTaskServiceImpl extends ServiceImpl<TeamTaskMapper, TeamTask> i
             throw new JeecgBootException("非法状态流转: " + from.getCode() + " → " + target.getCode()
                     + "（任务 id=" + id + "）");
         }
+        // P1 依赖前置校验：进入 doing 前要求依赖全部完成（blocked 是派生位，这里以依赖实时重查为准）
+        if (target == TeamTaskStatus.DOING && dependencyService.hasUnfinishedDependency(id)) {
+            throw new JeecgBootException("存在未完成依赖，不能进入进行中: id=" + id);
+        }
         if (loginUser != null) {
             ownershipGuard.requireTaskOperator(task.getAssigneeId(), task.getAssigneeName(),
                     task.getCreateBy(), id);
@@ -84,6 +93,9 @@ public class TeamTaskServiceImpl extends ServiceImpl<TeamTaskMapper, TeamTask> i
             task.setUpdateBy(loginUser.getUsername());
         }
         updateById(task);
+
+        // P1 依赖联动：本任务完成/重开时重算依赖方的 blocked 派生位（状态机本身零改动）
+        dependencyService.refreshDependentsBlocked(id);
 
         auditLogger.log(TeamAuditBizType.TASK, task.getId(), task.getTitle(),
                 TeamAuditAction.CHANGE_STATUS, from.getCode(), target.getCode(), null);
@@ -127,6 +139,46 @@ public class TeamTaskServiceImpl extends ServiceImpl<TeamTaskMapper, TeamTask> i
         removeByIds(ids);
     }
 
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void claim(String id) {
+        TeamTask task = requireTask(id);
+        LoginUser loginUser = (LoginUser) SecurityUtils.getSubject().getPrincipal();
+        if (loginUser == null) {
+            throw new JeecgBootException("认领需要登录态: id=" + id);
+        }
+        String fromAssignee = task.getAssigneeName();
+        task.setAssigneeId(loginUser.getId());
+        task.setAssigneeName(loginUser.getRealname());
+        task.setUpdateTime(new Date());
+        task.setUpdateBy(loginUser.getUsername());
+        updateById(task);
+        auditLogger.log(TeamAuditBizType.TASK, task.getId(), task.getTitle(),
+                TeamAuditAction.CLAIM, fromAssignee, loginUser.getRealname(), null);
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void reassign(String id, String assigneeId, String assigneeName) {
+        TeamTask task = requireTask(id);
+        if (StringUtils.isBlank(assigneeId) || StringUtils.isBlank(assigneeName)) {
+            throw new JeecgBootException("改派参数不能为空: assigneeId/assigneeName");
+        }
+        // F-09：改派限创建人或管理员（自助认领走 claim，语义不同）
+        ownershipGuard.requireOwnerOrAdmin(task.getCreateBy(), "他人任务");
+        String fromAssignee = task.getAssigneeName();
+        task.setAssigneeId(assigneeId);
+        task.setAssigneeName(assigneeName);
+        task.setUpdateTime(new Date());
+        LoginUser loginUser = (LoginUser) SecurityUtils.getSubject().getPrincipal();
+        if (loginUser != null) {
+            task.setUpdateBy(loginUser.getUsername());
+        }
+        updateById(task);
+        auditLogger.log(TeamAuditBizType.TASK, task.getId(), task.getTitle(),
+                TeamAuditAction.REASSIGN, fromAssignee, assigneeName, null);
+    }
+
     private TeamTask requireTask(String id) {
         TeamTask task = getById(id);
         if (task == null) {
@@ -160,6 +212,9 @@ public class TeamTaskServiceImpl extends ServiceImpl<TeamTaskMapper, TeamTask> i
         TeamTaskDetail detail = new TeamTaskDetail();
         detail.setTask(task);
         detail.setComments(commentService.listByTask(id));
+        detail.setBlockedBy(dependencyService
+                .mapUnfinishedDependsOnIds(Collections.singletonList(id))
+                .getOrDefault(id, Collections.emptyList()));
 
         // 时间线复用审计日志：只追加不改写，天然就是事件流
         LambdaQueryWrapper<TeamAuditLog> wrapper = new LambdaQueryWrapper<>();
@@ -172,10 +227,10 @@ public class TeamTaskServiceImpl extends ServiceImpl<TeamTaskMapper, TeamTask> i
 
     @Override
     public int nextTaskNo() {
-        LambdaQueryWrapper<TeamTask> wrapper = new LambdaQueryWrapper<>();
-        wrapper.orderByDesc(TeamTask::getTaskNo).last("LIMIT 1");
-        TeamTask latest = getOne(wrapper, false);
-        return latest != null && latest.getTaskNo() != null ? latest.getTaskNo() + 1 : 1;
+        // ponytail: 手写 MAX 查询取全表最大序号（含逻辑删行）；MP 的 @TableLogic 查询会自动
+        // 过滤 deleted=1，直接用 getOne(orderByDesc) 会把已删行的序号算漏，复用时撞 uk_team_task_no
+        Integer max = baseMapper.selectMaxTaskNo();
+        return max != null ? max + 1 : 1;
     }
 
     @Override

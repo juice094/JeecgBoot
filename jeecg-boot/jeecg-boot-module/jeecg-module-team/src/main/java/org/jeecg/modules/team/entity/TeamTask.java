@@ -95,4 +95,18 @@ public class TeamTask extends JeecgEntity implements Serializable {
     @Schema(description = "逻辑删除 0=正常 1=已删", hidden = true)
     @TableLogic(value = "0", delval = "1")
     private Integer deleted;
+
+    /**
+     * 阻塞标记 1=被未完成依赖阻塞 0=正常（V3.9.6_16 派生位，重算入口 TeamTaskDependencyService；
+     * TeamTaskStatus 六态/三态机零改动）
+     */
+    @Schema(description = "阻塞标记 1=被未完成依赖阻塞 0=正常")
+    private Integer blocked;
+
+    /**
+     * 任务标签列表（team_task_label 关联查询，仅列表/详情返回用，非库列；V3.9.6_16）
+     */
+    @Schema(description = "任务标签列表")
+    @com.baomidou.mybatisplus.annotation.TableField(exist = false)
+    private java.util.List<TeamLabel> labels;
 }

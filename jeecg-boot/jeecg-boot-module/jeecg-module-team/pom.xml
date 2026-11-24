@@ -18,6 +18,18 @@
             <groupId>org.jeecgframework.boot3</groupId>
             <artifactId>jeecg-boot-base-core</artifactId>
         </dependency>
+        <!-- W3：审批链双写 Flowable 引擎（FlowTeamApprovalSyncService / FlowApproverResolver），单向 team → flow -->
+        <dependency>
+            <groupId>org.jeecgframework.boot3</groupId>
+            <artifactId>jeecg-module-flow</artifactId>
+            <version>3.9.6</version>
+        </dependency>
+        <!-- W3 双写集成测试需嵌入式数据库（H2 内存库），同 flow 模块测试口径 -->
+        <dependency>
+            <groupId>com.h2database</groupId>
+            <artifactId>h2</artifactId>
+            <scope>test</scope>
+        </dependency>
         <dependency>
             <groupId>org.glassfish.jaxb</groupId>
             <artifactId>jaxb-runtime</artifactId>

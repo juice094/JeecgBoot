@@ -8,7 +8,8 @@ package org.jeecg.modules.team.enums;
  */
 public enum TeamAuditAction {
 
-    CREATE("create", "创建"), SUBMIT("submit", "提交"), CHANGE_STATUS("change_status", "状态流转"), COMMENT("comment", "评论"), APPROVE("approve", "审批通过"), REJECT("reject", "审批拒绝"), RETURN("return", "退回"), CANCEL("cancel", "撤销"), RESUBMIT("resubmit", "重提");
+    CREATE("create", "创建"), SUBMIT("submit", "提交"), CHANGE_STATUS("change_status", "状态流转"), COMMENT("comment", "评论"), APPROVE("approve", "审批通过"), REJECT("reject", "审批拒绝"), RETURN("return", "退回"), CANCEL("cancel", "撤销"), RESUBMIT("resubmit", "重提"),
+    CLAIM("claim", "认领"), REASSIGN("reassign", "改派");
 
     private final String code;
     private final String label;

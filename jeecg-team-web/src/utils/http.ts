@@ -13,8 +13,11 @@ import { getSign, getTimestamp } from './sign';
  */
 const isTauri = typeof window !== 'undefined' && '__TAURI_INTERNALS__' in window;
 
+/** API baseURL —— SSE/EventSource 等无法走 axios 拦截器的场景复用同一口径（见文件头） */
+export const API_BASE_URL = isTauri ? 'http://127.0.0.1:8081/jeecg-boot' : '/jeecg-boot';
+
 const http = axios.create({
-  baseURL: isTauri ? 'http://127.0.0.1:8081/jeecg-boot' : '/jeecg-boot',
+  baseURL: API_BASE_URL,
   timeout: REQUEST_TIMEOUT_MS,
 });
 

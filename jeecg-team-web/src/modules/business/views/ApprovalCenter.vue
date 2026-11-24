@@ -97,16 +97,16 @@ function resubmit(row: Approval) {
 
 // ---- 状态标签（六态全覆盖，避免 undefined.cls 抛异常） ----
 const STATUS_TAG: Record<Approval['status'], { text: string; cls: string }> = {
-  draft: { text: '草稿', cls: 'tag-neutral' },
-  pending: { text: '审批中', cls: 'tag-warning' },
-  returned: { text: '已退回', cls: 'tag-info' },
-  approved: { text: '已通过', cls: 'tag-success' },
-  rejected: { text: '已拒绝', cls: 'tag-danger' },
-  canceled: { text: '已撤销', cls: 'tag-neutral' },
+  draft: { text: '草稿', cls: 'tag--neutral' },
+  pending: { text: '审批中', cls: 'tag--warning' },
+  returned: { text: '已退回', cls: 'tag--info' },
+  approved: { text: '已通过', cls: 'tag--success' },
+  rejected: { text: '已拒绝', cls: 'tag--danger' },
+  canceled: { text: '已撤销', cls: 'tag--neutral' },
 };
 
 function statusTag(s: string) {
-  return STATUS_TAG[s as Approval['status']] ?? { text: s, cls: 'tag-neutral' };
+  return STATUS_TAG[s as Approval['status']] ?? { text: s, cls: 'tag--neutral' };
 }
 
 // ---- 按钮可见性（状态 × tab 矩阵） ----
@@ -117,14 +117,14 @@ const hasActions = (row: Approval) => canApprove(row) || canCancel(row) || canRe
 
 // ---- 审批步骤时间线（行内展开，懒加载 + 缓存） ----
 const STEP_ACTION: Record<ApprovalStep['action'], { text: string; cls: string }> = {
-  wait: { text: '待审批', cls: 'tag-info' },
-  approved: { text: '已通过', cls: 'tag-success' },
-  rejected: { text: '已拒绝', cls: 'tag-danger' },
-  returned: { text: '已退回', cls: 'tag-warning' },
+  wait: { text: '待审批', cls: 'tag--info' },
+  approved: { text: '已通过', cls: 'tag--success' },
+  rejected: { text: '已拒绝', cls: 'tag--danger' },
+  returned: { text: '已退回', cls: 'tag--warning' },
 };
 
 function stepAction(s: string) {
-  return STEP_ACTION[s as ApprovalStep['action']] ?? { text: s, cls: 'tag-neutral' };
+  return STEP_ACTION[s as ApprovalStep['action']] ?? { text: s, cls: 'tag--neutral' };
 }
 
 const expandedId = ref('');

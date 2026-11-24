@@ -1,5 +1,7 @@
 // 系统监控 API —— jeecg 原生 /sys/**（只读口径，来源：jeecgboot-vue3 src/views/monitor/*/ *.api.ts，docs/24 A/B 档）
 import http from '@/utils/http';
+import { API_BASE_URL } from '@/utils/http';
+import { TOKEN_STORAGE_KEY } from '@/constants/app';
 import type { PageResult } from '@/api/team';
 
 // ---- 日志管理（/sys/log，SysLog 实体字段口径） ----
@@ -111,4 +113,41 @@ export function fetchRedisMemoryInfo() {
 /** Redis 信息明细（Result 包装，List<RedisInfo>） */
 export function fetchRedisInfo() {
   return http.get<any, { result: RedisInfoItem[] }>('/sys/actuator/redis/info');
+}
+
+// ---- 业务事件流（SSE，GET /team/event/stream，权限 team:task:list；后端 2026-11-23 同步施工） ----
+
+/** SSE 事件载荷（契约为准；字段同 TaskEvent 审计口径，操作人字段为 createBy） */
+export interface StreamEvent {
+  id: string;
+  bizType: string;
+  bizId: string;
+  bizCode?: string;
+  action: string;
+  fromValue?: string;
+  toValue?: string;
+  createTime?: string | number;
+  createBy?: string;
+}
+
+export interface EventStreamParams {
+  /** 业务类型过滤，逗号多值（可选） */
+  bizType?: string;
+  /** 回溯条数（默认 50，后端口径） */
+  tail?: number;
+}
+
+/**
+ * 组装 SSE 地址。EventSource 无法设置请求头，token 走 query —— 后端 JwtFilter 已有
+ * `request.getParameter("token")` 兜底（jeecg-boot-base-core JwtFilter.java），header 缺失时按 query 鉴权；
+ * axios 场景仍走 X-Access-Token 头，双轨并存。
+ */
+export function buildEventStreamUrl(params: EventStreamParams = {}): string {
+  const search = new URLSearchParams();
+  const token = localStorage.getItem(TOKEN_STORAGE_KEY);
+  if (token) search.set('token', token);
+  if (params.bizType) search.set('bizType', params.bizType);
+  if (params.tail != null) search.set('tail', String(params.tail));
+  const qs = search.toString();
+  return `${API_BASE_URL}/team/event/stream${qs ? `?${qs}` : ''}`;
 }

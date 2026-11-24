@@ -38,24 +38,6 @@ export const layoutChildren: RouteRecordRaw[] = [
     meta: { title: '角色管理', owner: 'Ym3699', group: '管理', icon: 'role', perm: 'system:role:list' },
   },
   {
-    path: 'admin/assets',
-    name: 'AssetManage',
-    component: () => import('@/modules/admin/views/AssetManage.vue'),
-    meta: { title: '行政管理', owner: 'Ym3699', group: '管理', icon: 'assets' },
-  },
-  {
-    path: 'admin/academic',
-    name: 'AcademicManage',
-    component: () => import('@/modules/admin/views/AcademicManage.vue'),
-    meta: { title: '教务管理', owner: 'Ym3699', group: '管理', icon: 'academic' },
-  },
-  {
-    path: 'admin/repair',
-    name: 'RepairManage',
-    component: () => import('@/modules/admin/views/RepairManage.vue'),
-    meta: { title: '后勤管理', owner: 'Ym3699', group: '管理', icon: 'repair' },
-  },
-  {
     path: 'admin/monitor/logs',
     name: 'MonitorLogs',
     component: () => import('@/modules/business/views/monitor/MonitorLogs.vue'),
@@ -86,22 +68,10 @@ export const layoutChildren: RouteRecordRaw[] = [
     meta: { title: '数据日志', group: '管理', icon: 'logs' },
   },
   {
-    path: 'biz/marketing',
-    name: 'Marketing',
-    component: () => import('@/modules/business/views/Marketing.vue'),
-    meta: { title: '市场活动', owner: 'juice094', group: '业务', icon: 'marketing' },
-  },
-  {
-    path: 'biz/vocational',
-    name: 'Vocational',
-    component: () => import('@/modules/business/views/Vocational.vue'),
-    meta: { title: '职业教育', owner: 'juice094', group: '业务', icon: 'vocational' },
-  },
-  {
-    path: 'biz/student',
-    name: 'StudentService',
-    component: () => import('@/modules/business/views/StudentService.vue'),
-    meta: { title: '学生服务', owner: 'juice094', group: '业务', icon: 'student' },
+    path: 'admin/monitor/events',
+    name: 'MonitorEventStream',
+    component: () => import('@/modules/business/views/monitor/MonitorEventStream.vue'),
+    meta: { title: '业务事件流', group: '管理', icon: 'events', perm: 'team:task:list' },
   },
   {
     path: 'tools/request',
@@ -114,6 +84,12 @@ export const layoutChildren: RouteRecordRaw[] = [
     name: 'ApprovalCenter',
     component: () => import('@/modules/business/views/ApprovalCenter.vue'),
     meta: { title: '审批中心', owner: 'juice094', group: '工具', icon: 'approval', perm: 'team:approval:list' },
+  },
+  {
+    path: 'tools/flow',
+    name: 'FlowCenter',
+    component: () => import('@/modules/business/views/FlowCenter.vue'),
+    meta: { title: '流程中心', owner: 'juice094', group: '工具', icon: 'flow', perm: 'team:flow:approve:todo' },
   },
   {
     path: 'tools/email',
@@ -132,6 +108,13 @@ export const layoutChildren: RouteRecordRaw[] = [
     name: 'BugReport',
     component: () => import('@/modules/business/views/BugReport.vue'),
     meta: { title: 'Bug 反馈', owner: 'juice094', group: '工具', icon: 'bug' },
+  },
+  {
+    // 语音转写：后端 /speech 模块（上传 → 建任务 → 轮询），接口见 src/api/speech.ts
+    path: 'tools/speech',
+    name: 'SpeechDemo',
+    component: () => import('@/modules/speech/views/SpeechDemo.vue'),
+    meta: { title: '录音转写', owner: 'Ym3699', group: '工具', icon: 'speech' },
   },
   {
     path: 'tools/taskboard',

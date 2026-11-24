@@ -71,6 +71,14 @@ public class TeamBugServiceImpl extends ServiceImpl<TeamBugMapper, TeamBug> impl
         removeById(id);
     }
 
+    @Override
+    public int nextBugNo() {
+        // ponytail: 手写 MAX 查询取全表最大序号（含逻辑删行）；MP 的 @TableLogic 查询会自动
+        // 过滤 deleted=1，直接用 getOne(orderByDesc) 会把已删行的序号算漏，复用时撞 uk_team_bug_no
+        Integer max = baseMapper.selectMaxBugNo();
+        return max != null ? max + 1 : 1;
+    }
+
     private String abbreviate(String description) {
         if (description == null) {
             return null;

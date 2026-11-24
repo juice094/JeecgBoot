@@ -23,6 +23,13 @@ export interface Approval {
   createTime?: string;
 }
 
+/** 彩色标签（team_label 表；/team/task/list 行内嵌，/team/issue/list 统一行携带） */
+export interface IssueLabel {
+  id?: string;
+  name: string;
+  color: string;
+}
+
 export interface Task {
   id: string;
   taskNo?: number;
@@ -33,6 +40,12 @@ export interface Task {
   priority?: string;
   assigneeId?: string;
   assigneeName?: string;
+  /** 依赖未完成等导致的阻塞标记位 */
+  blocked?: boolean;
+  /** 被依赖任务 ID 列表（/team/task/detail 与 /team/issue/list 任务行携带，P1.5a 契约） */
+  blockedBy?: string[];
+  /** 彩色标签（后端行内嵌，P1 起替代单值 tag） */
+  labels?: IssueLabel[];
   dueDate?: string;
   sortNo?: number;
   createBy?: string;
@@ -47,6 +60,31 @@ export interface TaskBoard {
 
 export function fetchTaskBoard() {
   return http.get<any, { result: TaskBoard }>('/team/task/board');
+}
+
+/** GET /team/task/list 分页参数（QueryGenerator 口径，见 TeamTaskController#queryPageList） */
+export interface TaskListParams {
+  /** 状态过滤：单值等值；多值逗号分隔走 IN（如 open 口径 'todo,doing'，closed 口径 'done'） */
+  status?: string;
+  assigneeId?: string;
+  priority?: string;
+  tag?: string;
+  createBy?: string;
+  /** 标题模糊：QueryGenerator 以值含 * 判定 LIKE，调用方需自带通配（如 '*关键字*'） */
+  title?: string;
+  /** 租户内序号精确匹配（#编号搜索） */
+  taskNo?: number;
+  /** 排序字段（库列名，如 create_time / due_date；优先级为中文枚举，语义序只能客户端排） */
+  column?: string;
+  /** 排序方向：asc / desc */
+  order?: string;
+  pageNo?: number;
+  pageSize?: number;
+}
+
+/** 任务分页（服务端筛选/排序，records/total 口径同 /list 其他端点） */
+export function listTasks(params: TaskListParams) {
+  return http.get<any, { result: PageResult<Task> }>('/team/task/list', { params });
 }
 
 export function addTask(body: Partial<Task>) {
@@ -248,4 +286,98 @@ export function changeBugStatus(id: string, status: string) {
 
 export function listBugs(params: { pageNo?: number; pageSize?: number; status?: string } = {}) {
   return http.get<any, { result: PageResult<Bug> }>('/team/bug/list', { params });
+}
+
+// ---------- P1 跨 kind 聚合（GET /team/issue/list，统一行契约） ----------
+
+export type IssueKind = 'task' | 'bug' | 'approval';
+export type IssueState = 'open' | 'closed';
+
+/** 统一行：kind + code（#T-12 / #B-3 / OA 单号）跨任务/缺陷/审批同构 */
+export interface IssueRow {
+  kind: IssueKind;
+  code: string;
+  bizId: string;
+  title: string;
+  state: IssueState;
+  assigneeName?: string;
+  labels: IssueLabel[];
+  blocked: boolean;
+  /** 任务行的被依赖任务 ID 列表（P1.5a 契约；缺陷/审批行不携带） */
+  blockedBy?: string[];
+  createTime?: string;
+  dueDate?: string;
+}
+
+/** 聚合列表入参（后端契约：kind/keyword/assigneeId/state/pageNo/pageSize） */
+export interface IssueListParams {
+  kind?: 'all' | IssueKind;
+  keyword?: string;
+  assigneeId?: string;
+  state?: IssueState | 'all';
+  pageNo?: number;
+  pageSize?: number;
+}
+
+/** 跨 kind 唯一列表（任务+缺陷+审批聚合；计数查询传 pageSize=1 取 total） */
+export function listIssues(params: IssueListParams) {
+  return http.get<any, { result: PageResult<IssueRow> }>('/team/issue/list', { params });
+}
+
+// ---------- 标签 CRUD（/team/label/*，需 team:task:edit） ----------
+
+export interface TeamLabel {
+  id: string;
+  name: string;
+  color: string;
+}
+
+export function listLabels(params: { pageNo?: number; pageSize?: number; name?: string } = {}) {
+  return http.get<any, { result: PageResult<TeamLabel> }>('/team/label/list', { params });
+}
+
+export function addLabel(body: { name: string; color: string }) {
+  return http.post('/team/label/add', body);
+}
+
+export function editLabel(body: { id: string; name?: string; color?: string }) {
+  return http.put('/team/label/edit', body);
+}
+
+export function deleteLabel(id: string) {
+  return http.delete(`/team/label/delete?id=${id}`);
+}
+
+// ---------- 任务依赖（/team/task/dependency*，需 team:task:edit；循环依赖后端兜底） ----------
+
+/** 被依赖任务列表（含状态快照，渲染依赖面板直接可用） */
+export function listTaskDependencies(taskId: string) {
+  return http.get<any, { result: Task[] }>('/team/task/dependency/list', { params: { taskId } });
+}
+
+/** 添加依赖：taskId 依赖 dependsOnTaskId（自依赖/重复/循环由后端强校验） */
+export function addTaskDependency(taskId: string, dependsOnTaskId: string) {
+  return http.post<any, { success?: boolean; message?: string }>('/team/task/dependency', {
+    taskId,
+    dependsOnTaskId,
+  });
+}
+
+/** 移除依赖（不存在视为幂等成功） */
+export function removeTaskDependency(taskId: string, dependsOnTaskId: string) {
+  return http.delete<any, { success?: boolean; message?: string }>('/team/task/dependency', {
+    params: { taskId, dependsOnTaskId },
+  });
+}
+
+// ---------- 行内操作：认领 / 改派（需 team:task:edit，服务端再做归属校验） ----------
+
+/** 认领任务（本人未指派时可用；服务端校验重复认领） */
+export function claimTask(id: string) {
+  return http.post('/team/task/claim', { id });
+}
+
+/** 改派（创建人/管理员；服务端校验权限） */
+export function reassignTask(body: { id: string; assigneeId: string; assigneeName: string }) {
+  return http.post('/team/task/reassign', body);
 }

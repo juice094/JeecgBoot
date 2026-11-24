@@ -72,4 +72,21 @@ public interface ITeamTaskService extends IService<TeamTask> {
      * @return 新序号
      */
     int nextTaskNo();
+
+    /**
+     * 自助认领：指派人置为当前登录人（F-09 语义=认领不算越权；
+     * 调用方 controller 挂 team:task:edit），写审计动作 CLAIM
+     *
+     * @param id 任务主键
+     */
+    void claim(String id);
+
+    /**
+     * 改派：仅创建人或管理员（TeamOwnershipGuard），写审计动作 REASSIGN
+     *
+     * @param id           任务主键
+     * @param assigneeId   新被指派人(sys_user.id)
+     * @param assigneeName 新被指派人姓名冗余
+     */
+    void reassign(String id, String assigneeId, String assigneeName);
 }

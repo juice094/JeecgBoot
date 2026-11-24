@@ -70,6 +70,12 @@ public class TeamApproval extends JeecgEntity implements Serializable {
     private String status;
 
     /**
+     * Flowable 流程实例 ID（W3 双写锚定，引擎侧 businessKey=code；非二级链无镜像时为空）
+     */
+    @Schema(description = "流程实例ID（W3 双写锚定）")
+    private String processInstanceId;
+
+    /**
      * 申请人(sys_user.id)
      */
     @Schema(description = "申请人(sys_user.id)")

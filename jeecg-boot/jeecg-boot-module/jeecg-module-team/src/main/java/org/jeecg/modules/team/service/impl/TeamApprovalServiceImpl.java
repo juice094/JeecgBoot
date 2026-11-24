@@ -23,8 +23,11 @@ import org.jeecg.modules.team.mapper.TeamApprovalStepMapper;
 import org.jeecg.modules.team.service.ITeamApprovalService;
 import org.jeecg.modules.team.service.ITeamApprovalTemplateService;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
@@ -64,6 +67,16 @@ public class TeamApprovalServiceImpl extends ServiceImpl<TeamApprovalMapper, Tea
     @Autowired
     private ITeamApprovalTemplateService templateService;
 
+    /**
+     * W3 切流开关：引擎驱动态审批动作改由引擎任务驱动、team 表被动同步。
+     * 本波只实现不翻转（默认 false=并行观测态，team 表为准、引擎侧只观测，charter R2）。
+     */
+    @Value("${jeecg.team.approval.engine-driven:false}")
+    private boolean engineDriven;
+
+    @Autowired
+    private TeamApprovalFlowSyncer flowSyncer;
+
     @Override
     @Transactional(rollbackFor = Exception.class)
     public TeamApproval submit(TeamApproval approval, List<TeamApprovalStep> clientSteps) {
@@ -89,6 +102,8 @@ public class TeamApprovalServiceImpl extends ServiceImpl<TeamApprovalMapper, Tea
                 "amount", approval.getAmount(),
                 "applicant", StringUtils.defaultIfBlank(approval.getApplicantName(), approval.getApplicantId()),
                 "stepCount", effectiveSteps.size());
+        // W3 双写：事务提交后起引擎镜像（观测态失败不阻断主流程，已由 syncer 兜底）
+        afterCommitSync(() -> flowSyncer.onSubmitted(approval.getId()));
         return approval;
     }
 
@@ -97,6 +112,8 @@ public class TeamApprovalServiceImpl extends ServiceImpl<TeamApprovalMapper, Tea
     public void approve(String approvalId, String comment) {
         TeamApproval approval = requireStatus(approvalId, TeamApprovalStatus.PENDING);
         TeamApprovalStep step = requireActionableStep(approval);
+        // W3 引擎驱动态：守卫全部通过后先驱动引擎任务，失败上抛回滚，team 表被动跟随
+        boolean driven = driveFirstIfEnabled(approvalId, approval, "approve");
 
         Date now = new Date();
         int stepUpdated = stepMapper.update(null, new LambdaUpdateWrapper<TeamApprovalStep>()
@@ -142,6 +159,10 @@ public class TeamApprovalServiceImpl extends ServiceImpl<TeamApprovalMapper, Tea
         logTransition(approval, stepSnapshot,
                 isLast ? TeamApprovalStatus.APPROVED.getCode() : stepSnapshot(newStep),
                 TeamAuditAction.APPROVE.getCode(), RESULT_OK);
+        if (!driven) {
+            // W3 双写（观测态）：事务提交后同步引擎，失败仅告警 + 对账留痕
+            afterCommitSync(() -> flowSyncer.onApproved(approvalId));
+        }
     }
 
     @Override
@@ -149,6 +170,7 @@ public class TeamApprovalServiceImpl extends ServiceImpl<TeamApprovalMapper, Tea
     public void reject(String approvalId, String comment) {
         TeamApproval approval = requireStatus(approvalId, TeamApprovalStatus.PENDING);
         TeamApprovalStep step = requireActionableStep(approval);
+        boolean driven = driveFirstIfEnabled(approvalId, approval, "reject");
 
         Date now = new Date();
         int stepUpdated = stepMapper.update(null, new LambdaUpdateWrapper<TeamApprovalStep>()
@@ -183,6 +205,9 @@ public class TeamApprovalServiceImpl extends ServiceImpl<TeamApprovalMapper, Tea
                 TeamApprovalStatus.REJECTED.getCode(), comment);
         logTransition(approval, stepSnapshot(step.getStepNo()), TeamApprovalStatus.REJECTED.getCode(),
                 TeamAuditAction.REJECT.getCode(), RESULT_OK);
+        if (!driven) {
+            afterCommitSync(() -> flowSyncer.onRejected(approvalId));
+        }
     }
 
     @Override
@@ -199,6 +224,7 @@ public class TeamApprovalServiceImpl extends ServiceImpl<TeamApprovalMapper, Tea
         if (countStepsByActionNot(approvalId, ACTION_WAIT) > 0) {
             throw new JeecgBootException("审批单已被处理，不可撤回: code=" + approval.getCode());
         }
+        boolean driven = driveFirstIfEnabled(approvalId, approval, "cancel");
 
         int updated = baseMapper.update(null, new LambdaUpdateWrapper<TeamApproval>()
                 .eq(TeamApproval::getId, approval.getId())
@@ -217,6 +243,9 @@ public class TeamApprovalServiceImpl extends ServiceImpl<TeamApprovalMapper, Tea
                 TeamApprovalStatus.CANCELED.getCode(), null);
         logTransition(approval, TeamApprovalStatus.PENDING.getCode(), TeamApprovalStatus.CANCELED.getCode(),
                 TeamAuditAction.CANCEL.getCode(), RESULT_OK);
+        if (!driven) {
+            afterCommitSync(() -> flowSyncer.onCanceled(approvalId));
+        }
     }
 
     @Override
@@ -224,6 +253,7 @@ public class TeamApprovalServiceImpl extends ServiceImpl<TeamApprovalMapper, Tea
     public void returnToApplicant(String approvalId, String comment) {
         TeamApproval approval = requireStatus(approvalId, TeamApprovalStatus.PENDING);
         TeamApprovalStep step = requireActionableStep(approval);
+        boolean driven = driveFirstIfEnabled(approvalId, approval, "return");
 
         Date now = new Date();
         int stepUpdated = stepMapper.update(null, new LambdaUpdateWrapper<TeamApprovalStep>()
@@ -258,6 +288,10 @@ public class TeamApprovalServiceImpl extends ServiceImpl<TeamApprovalMapper, Tea
                 TeamApprovalStatus.RETURNED.getCode(), comment);
         logTransition(approval, stepSnapshot(step.getStepNo()), TeamApprovalStatus.RETURNED.getCode(),
                 TeamAuditAction.RETURN.getCode(), RESULT_OK);
+        if (!driven) {
+            // 引擎镜像中退回等价于 rejectedEnd 终止（对账口径见 TeamApprovalFlowSyncer）
+            afterCommitSync(() -> flowSyncer.onReturned(approvalId));
+        }
     }
 
     @Override
@@ -300,6 +334,8 @@ public class TeamApprovalServiceImpl extends ServiceImpl<TeamApprovalMapper, Tea
 
         approval.setStatus(TeamApprovalStatus.PENDING.getCode());
         approval.setCurrentStep(1);
+        // W3 双写：重提后重启引擎镜像（旧镜像已 rejectedEnd 终止，换新实例重新锚定）
+        afterCommitSync(() -> flowSyncer.onSubmitted(approvalId));
         return approval;
     }
 
@@ -552,6 +588,51 @@ public class TeamApprovalServiceImpl extends ServiceImpl<TeamApprovalMapper, Tea
                 "action", action,
                 "result", result,
                 "operator", loginUser == null ? null : loginUser.getUsername());
+    }
+
+    /**
+     * W3 引擎驱动态（jeecg.team.approval.engine-driven=true）：守卫通过后先同步驱动引擎，
+     * team 表随后被动更新；引擎异常上抛使 team 事务回滚（与观测态的「失败不阻断」相反）。
+     * 无引擎镜像的单据（非二级链/历史单）自动回退 team 表自驱 + 观测态同步。
+     *
+     * @return true=已由引擎驱动（调用方不得再注册观测态同步）；false=回退观测态
+     */
+    private boolean driveFirstIfEnabled(String approvalId, TeamApproval approval, String action) {
+        if (!engineDriven || StringUtils.isBlank(approval.getProcessInstanceId())) {
+            return false;
+        }
+        switch (action) {
+            case "approve":
+                flowSyncer.driveApprove(approvalId);
+                break;
+            case "reject":
+            case "return":
+                flowSyncer.driveReject(approvalId);
+                break;
+            case "cancel":
+                flowSyncer.driveCancel(approvalId);
+                break;
+            default:
+                throw new IllegalStateException("unknown drive action: " + action);
+        }
+        return true;
+    }
+
+    /**
+     * 事务提交后触发双写同步：避免 team 事务回滚留下「引擎已起实例、单据不存在」的孤儿镜像；
+     * 无事务上下文（如单元测试直调）时同步执行。
+     */
+    private void afterCommitSync(Runnable syncAction) {
+        if (TransactionSynchronizationManager.isSynchronizationActive()) {
+            TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+                @Override
+                public void afterCommit() {
+                    syncAction.run();
+                }
+            });
+            return;
+        }
+        syncAction.run();
     }
 
     /** ponytail: 试点级单号生成，并发问题（P1）另行处理 */

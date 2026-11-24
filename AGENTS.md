@@ -23,8 +23,8 @@ JeecgBoot/
 │   │   ├── jeecg-system-api/    # API 接口层：local-api（单体直调）与 cloud-api（Feign）二选一
 │   │   ├── jeecg-system-biz/    # 业务逻辑、实体、Mapper、Service
 │   │   └── jeecg-system-start/  # 启动入口 JeecgSystemApplication 与全部配置
-│   ├── jeecg-boot-module/       # 业务功能模块：demo、AI/RAG（airag）、easyoa、joa-flowable、pay、wps
-│   ├── jeecg-boot-platform/     # 低代码平台模块：BPM-flowable、bigscreen、desform、drag、lowapp、online 代码生成器等
+│   ├── jeecg-boot-module/       # 业务功能模块（本检出实际含）：demo、AI/RAG（airag）、团队协作（team）、邮件（mail）、流程（flow）
+│   ├── jeecg-boot-platform/     # 【本检出不存】上游低代码平台模块（BPM-flowable、bigscreen、desform、online 代码生成器等）已裁剪，勿按上游文档假设存在
 │   ├── jeecg-server-cloud/      # 微服务组件（-P SpringCloud 激活）：Gateway 9999、Nacos、Sentinel、XXL-Job 等
 │   └── db/                      # MySQL 初始化脚本（jeecgboot-mysql-5.7.sql）
 ├── jeecg-team-web/              # 现行默认前端（新工程，模块分工见其 README.md）
@@ -139,7 +139,7 @@ pnpm batch:prettier # 对 src/ 全量 Prettier 格式化，仅在需要大范围
 
 - 执行删除类操作遵循迁移而非物理删除（`mv` 到隔离目录）。
 - 大范围搜索/读取时避开 `node_modules/`、`dist/`、`target/`、`.git/`、`docker/data/` 等目录（各子目录 `.claudeignore` 可参照）。
-- Online 低代码模块（`jeecg-boot-platform/.../jeecg-boot-module-online`）为**元数据驱动**：表单/报表配置存于数据库表（`onl_cgform_*`），代码仓库中读不到具体配置；需要时向用户索要 JSON 导出或截图。配置 Schema 详见 `jeecg-boot/online-form-schema.md` 与前端 `src/views/super/online/cgform/online-form-schema.md`。
+- Online 低代码模块（上游 `jeecg-boot-platform/.../jeecg-boot-module-online`，本检出不存）为**元数据驱动**：表单/报表配置存于数据库表（`onl_cgform_*`），代码仓库中读不到具体配置；需要时向用户索要 JSON 导出或截图。配置 Schema 详见 `jeecg-boot/online-form-schema.md` 与前端 `src/views/super/online/cgform/online-form-schema.md`。
 - 在线用户列表的口径与 token 堆积治理（is-concurrent=false、按 token 列出不按人去重）见 `projects/agent-collab-pilot/reports/online-user-dup-fix-20261120.md`；对 Redis 批量删除注意 redis-cli 的 CRLF 坑（该报告 §3 有可靠命令）。
 - 忘记密码功能（team-web /forgot-password：签名实现、dev 短信 mock、联调要点与回滚）见 `projects/agent-collab-pilot/reports/forgot-password-20261120.md`。
 - 权限体系（四层角色模板：标配/业务成员/业务主管/系统管理员；前端 getPermCode 权限闭环与侧栏过滤；SQL 在 `projects/agent-collab-pilot/sql/permission-system-20261120.sql`）见 `projects/agent-collab-pilot/reports/permission-system-20261120.md`。

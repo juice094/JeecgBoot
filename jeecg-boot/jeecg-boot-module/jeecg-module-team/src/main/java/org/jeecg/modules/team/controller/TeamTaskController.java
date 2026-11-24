@@ -1,8 +1,10 @@
 package org.jeecg.modules.team.controller;
 
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.Date;
 import java.util.List;
+import java.util.Map;
 
 import jakarta.servlet.http.HttpServletRequest;
 import org.apache.commons.lang3.StringUtils;
@@ -13,9 +15,12 @@ import org.jeecg.common.system.base.controller.JeecgController;
 import org.jeecg.common.system.query.QueryGenerator;
 import org.jeecg.common.system.vo.LoginUser;
 import org.apache.shiro.authz.annotation.RequiresPermissions;
+import org.jeecg.modules.team.entity.TeamLabel;
 import org.jeecg.modules.team.entity.TeamTask;
 import org.jeecg.modules.team.enums.TeamAuditAction;
 import org.jeecg.modules.team.enums.TeamAuditBizType;
+import org.jeecg.modules.team.service.ITeamTaskDependencyService;
+import org.jeecg.modules.team.service.ITeamTaskLabelService;
 import org.jeecg.modules.team.service.ITeamTaskService;
 import org.jeecg.modules.team.service.impl.TeamAuditLogger;
 import org.jeecg.modules.team.vo.TeamTaskBoard;
@@ -59,13 +64,21 @@ public class TeamTaskController extends JeecgController<TeamTask, ITeamTaskServi
     @Autowired
     private TeamAuditLogger auditLogger;
 
+    @Autowired
+    private ITeamTaskLabelService teamTaskLabelService;
+
+    @Autowired
+    private ITeamTaskDependencyService teamTaskDependencyService;
+
     /**
      * 分页列表查询
      * 前端合同：jeecg-team-web 任务看板（pageNo/pageSize，返回 records/total）
+     * P1：返回行并入 labels 数组（team_task_label 关联，原 tag 单字段保留不动）
      */
     @AutoLog(value = "团队协作-任务-分页列表查询")
     @Operation(summary = "团队协作-任务-分页列表查询",
-            description = "实体非空字段自动转为等值过滤（QueryGenerator 口径）；排序 sort_no 升序、create_time 降序。")
+            description = "实体非空字段自动转为等值过滤（QueryGenerator 口径）；排序 sort_no 升序、create_time 降序；"
+                    + "返回行带 labels 标签数组（V3.9.6_16 标签体系，tag 单字段兼容保留）。")
     @RequiresPermissions("team:task:list")
     @GetMapping(value = "/list")
     public Result<IPage<TeamTask>> queryPageList(TeamTask teamTask,
@@ -78,6 +91,11 @@ public class TeamTaskController extends JeecgController<TeamTask, ITeamTaskServi
         queryWrapper.orderByAsc("sort_no").orderByDesc("create_time");
         Page<TeamTask> page = new Page<>(pageNo, pageSize);
         IPage<TeamTask> pageList = teamTaskService.page(page, queryWrapper);
+        List<String> taskIds = pageList.getRecords().stream()
+                .map(TeamTask::getId).collect(java.util.stream.Collectors.toList());
+        Map<String, List<TeamLabel>> labelMap = teamTaskLabelService.listLabelsByTaskIds(taskIds);
+        pageList.getRecords().forEach(task ->
+                task.setLabels(labelMap.getOrDefault(task.getId(), Collections.emptyList())));
         return Result.OK(pageList);
     }
 
@@ -243,5 +261,187 @@ public class TeamTaskController extends JeecgController<TeamTask, ITeamTaskServi
             return Result.error("未找到对应数据");
         }
         return Result.OK(teamTask);
+    }
+
+    /**
+     * 自助认领：指派人=当前登录人（F-09 语义=认领不算越权；审计动作 CLAIM）
+     */
+    @AutoLog(value = "团队协作-任务-认领")
+    @Operation(summary = "团队协作-任务-认领（自助，指派人=本人）",
+            description = "错误场景：任务不存在、未登录态被 service 层拒绝。")
+    @RequiresPermissions("team:task:edit")
+    @PostMapping(value = "/claim")
+    public Result<String> claim(@RequestBody TeamTaskIdBody body) {
+        if (body == null || StringUtils.isBlank(body.getId())) {
+            return Result.error("任务ID不能为空");
+        }
+        teamTaskService.claim(body.getId());
+        return Result.OK("认领成功");
+    }
+
+    /**
+     * 改派：仅创建人或管理员（TeamOwnershipGuard；审计动作 REASSIGN）
+     */
+    @AutoLog(value = "团队协作-任务-改派")
+    @Operation(summary = "团队协作-任务-改派（限创建人或管理员）",
+            description = "错误场景：参数为空、非创建人/管理员被 service 层拒绝。")
+    @RequiresPermissions("team:task:edit")
+    @PostMapping(value = "/reassign")
+    public Result<String> reassign(@RequestBody TeamTaskReassignBody body) {
+        if (body == null || StringUtils.isBlank(body.getId())) {
+            return Result.error("任务ID不能为空");
+        }
+        teamTaskService.reassign(body.getId(), body.getAssigneeId(), body.getAssigneeName());
+        return Result.OK("改派成功");
+    }
+
+    /**
+     * 全量替换任务标签（先删后插；空数组=清空）
+     */
+    @AutoLog(value = "团队协作-任务-设置标签")
+    @Operation(summary = "团队协作-任务-设置标签（全量替换）",
+            description = "body: {taskId, labelIds[]}；labelIds 为空数组表示清空标签。")
+    @RequiresPermissions("team:task:edit")
+    @PostMapping(value = "/labels")
+    public Result<String> setLabels(@RequestBody TeamTaskLabelsBody body) {
+        if (body == null || StringUtils.isBlank(body.getTaskId())) {
+            return Result.error("任务ID不能为空");
+        }
+        if (teamTaskService.getById(body.getTaskId()) == null) {
+            return Result.error("未找到对应数据");
+        }
+        List<String> labelIds = body.getLabelIds() == null ? Collections.emptyList() : body.getLabelIds();
+        teamTaskLabelService.setTaskLabels(body.getTaskId(), labelIds);
+        return Result.OK("标签已更新");
+    }
+
+    /**
+     * 任务依赖列表（被依赖任务，含状态快照）
+     */
+    @AutoLog(value = "团队协作-任务-依赖列表")
+    @Operation(summary = "团队协作-任务-依赖列表", description = "返回被依赖任务列表（依赖方=taskId）。")
+    @RequiresPermissions("team:task:list")
+    @GetMapping(value = "/dependency/list")
+    public Result<List<TeamTask>> dependencyList(
+            @Parameter(name = "taskId", description = "任务ID", required = true) @RequestParam(name = "taskId", required = true) String taskId) {
+        return Result.OK(teamTaskDependencyService.listDependsOnTasks(taskId));
+    }
+
+    /**
+     * 添加依赖：taskId 依赖 dependsOnTaskId；被依赖未完成则 taskId blocked=1
+     */
+    @AutoLog(value = "团队协作-任务-添加依赖")
+    @Operation(summary = "团队协作-任务-添加依赖",
+            description = "错误场景：自依赖、重复依赖、任务不存在；进入 doing 前要求依赖全部完成。")
+    @RequiresPermissions("team:task:edit")
+    @PostMapping(value = "/dependency")
+    public Result<String> addDependency(@RequestBody TeamTaskDependencyBody body) {
+        if (body == null || StringUtils.isBlank(body.getTaskId()) || StringUtils.isBlank(body.getDependsOnTaskId())) {
+            return Result.error("依赖参数不能为空");
+        }
+        teamTaskDependencyService.addDependency(body.getTaskId(), body.getDependsOnTaskId());
+        return Result.OK("依赖已添加");
+    }
+
+    /**
+     * 移除依赖（重算 blocked）
+     */
+    @AutoLog(value = "团队协作-任务-移除依赖")
+    @Operation(summary = "团队协作-任务-移除依赖", description = "不存在视为幂等成功。")
+    @RequiresPermissions("team:task:edit")
+    @DeleteMapping(value = "/dependency")
+    public Result<String> removeDependency(
+            @Parameter(name = "taskId", description = "依赖方任务ID", required = true) @RequestParam(name = "taskId", required = true) String taskId,
+            @Parameter(name = "dependsOnTaskId", description = "被依赖任务ID", required = true) @RequestParam(name = "dependsOnTaskId", required = true) String dependsOnTaskId) {
+        teamTaskDependencyService.removeDependency(taskId, dependsOnTaskId);
+        return Result.OK("依赖已移除");
+    }
+
+    /** claim 请求体（controller 内聚，同 TeamApprovalSubmitBody 先例） */
+    public static class TeamTaskIdBody {
+        private String id;
+
+        public String getId() {
+            return id;
+        }
+
+        public void setId(String id) {
+            this.id = id;
+        }
+    }
+
+    /** reassign 请求体 */
+    public static class TeamTaskReassignBody {
+        private String id;
+        private String assigneeId;
+        private String assigneeName;
+
+        public String getId() {
+            return id;
+        }
+
+        public void setId(String id) {
+            this.id = id;
+        }
+
+        public String getAssigneeId() {
+            return assigneeId;
+        }
+
+        public void setAssigneeId(String assigneeId) {
+            this.assigneeId = assigneeId;
+        }
+
+        public String getAssigneeName() {
+            return assigneeName;
+        }
+
+        public void setAssigneeName(String assigneeName) {
+            this.assigneeName = assigneeName;
+        }
+    }
+
+    /** 任务标签替换请求体 */
+    public static class TeamTaskLabelsBody {
+        private String taskId;
+        private List<String> labelIds;
+
+        public String getTaskId() {
+            return taskId;
+        }
+
+        public void setTaskId(String taskId) {
+            this.taskId = taskId;
+        }
+
+        public List<String> getLabelIds() {
+            return labelIds;
+        }
+
+        public void setLabelIds(List<String> labelIds) {
+            this.labelIds = labelIds;
+        }
+    }
+
+    /** 依赖请求体 */
+    public static class TeamTaskDependencyBody {
+        private String taskId;
+        private String dependsOnTaskId;
+
+        public String getTaskId() {
+            return taskId;
+        }
+
+        public void setTaskId(String taskId) {
+            this.taskId = taskId;
+        }
+
+        public String getDependsOnTaskId() {
+            return dependsOnTaskId;
+        }
+
+        public void setDependsOnTaskId(String dependsOnTaskId) {
+            this.dependsOnTaskId = dependsOnTaskId;
+        }
     }
 }

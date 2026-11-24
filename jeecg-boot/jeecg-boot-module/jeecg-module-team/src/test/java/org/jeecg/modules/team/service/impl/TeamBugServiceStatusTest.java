@@ -120,4 +120,16 @@ class TeamBugServiceStatusTest {
         }
         assertTrue(rollbackException, "@Transactional 必须声明 rollbackFor = Exception.class");
     }
+
+    @Test
+    void nextBugNoUsesGlobalMaxIncludingLogicallyDeleted() {
+        TeamBugMapper mapper = mock(TeamBugMapper.class);
+        TeamBugServiceImpl svc = newService(mapper, mock(TeamAuditLogger.class));
+
+        when(mapper.selectMaxBugNo()).thenReturn(7);
+        assertEquals(8, svc.nextBugNo(), "取全表最大序号 + 1（含逻辑删行）");
+
+        when(mapper.selectMaxBugNo()).thenReturn(null);
+        assertEquals(1, svc.nextBugNo(), "空表从 1 开始");
+    }
 }

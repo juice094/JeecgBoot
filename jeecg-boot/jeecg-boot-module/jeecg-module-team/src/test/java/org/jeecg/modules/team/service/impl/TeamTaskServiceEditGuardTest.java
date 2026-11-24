@@ -13,6 +13,7 @@ import org.jeecg.common.exception.JeecgBootException;
 import org.jeecg.common.system.vo.LoginUser;
 import org.jeecg.modules.team.entity.TeamTask;
 import org.jeecg.modules.team.mapper.TeamTaskMapper;
+import org.jeecg.modules.team.service.ITeamTaskDependencyService;
 import org.junit.jupiter.api.Test;
 import org.mockito.MockedStatic;
 import org.springframework.test.util.ReflectionTestUtils;
@@ -35,6 +36,8 @@ class TeamTaskServiceEditGuardTest {
         ReflectionTestUtils.setField(svc, "baseMapper", mapper);
         ReflectionTestUtils.setField(svc, "ownershipGuard", guard);
         ReflectionTestUtils.setField(svc, "auditLogger", mock(TeamAuditLogger.class));
+        // P1 依赖线引入：changeStatus/edit 路径不触发依赖查询，mock 默认值即可
+        ReflectionTestUtils.setField(svc, "dependencyService", mock(ITeamTaskDependencyService.class));
         return svc;
     }
 

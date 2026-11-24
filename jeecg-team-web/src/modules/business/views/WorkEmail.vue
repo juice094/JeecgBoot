@@ -318,8 +318,14 @@ async function removeSelected() {
 }
 
 // ---- 写信 ----
+// 幂等口径（D-20261119-87 ①消费面）：每次打开写信窗生成新 idempotencyKey——
+// 同窗内双击/网络重试同 key 被后端拒重（只发一次）；新窗同内容重发用新 key 不误伤。
+const composerIdemKey = ref('');
+const sending = ref(false);
+
 function openComposer(mode: MailSendMode, mail?: MailMessageIndex) {
   composerMode.value = mode;
+  composerIdemKey.value = crypto.randomUUID();
   composer.value = {
     to: '',
     subject: mode === 'new' ? '' : `Re: ${mail?.subject ?? ''}`,
@@ -329,6 +335,7 @@ function openComposer(mode: MailSendMode, mail?: MailMessageIndex) {
 }
 
 async function submitComposer(payload: { to: string; subject: string; html: string }) {
+  if (sending.value) return; // 前端锁：双击/重复提交在途即拒（后端 incr 为第二道，双保险）
   errorMsg.value = '';
   composer.value = { to: payload.to, subject: payload.subject, html: payload.html };
   if (!payload.to.trim() || !payload.subject.trim()) {
@@ -336,6 +343,7 @@ async function submitComposer(payload: { to: string; subject: string; html: stri
     return;
   }
   if (!myAccount.value) return;
+  sending.value = true;
   try {
     await sendMailMessage({
       accountId: myAccount.value.id,
@@ -343,12 +351,15 @@ async function submitComposer(payload: { to: string; subject: string; html: stri
       to: payload.to.trim(),
       subject: payload.subject.trim(),
       html: payload.html,
+      idempotencyKey: composerIdemKey.value,
     });
     composerOpen.value = false;
     syncHint.value = '已投递；「已发送」文件夹在下次同步后可见。';
     await loadMessages();
   } catch (e) {
     errorMsg.value = `发送失败：${(e as Error).message}`;
+  } finally {
+    sending.value = false;
   }
 }
 

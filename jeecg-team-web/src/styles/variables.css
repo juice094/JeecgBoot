@@ -49,6 +49,8 @@
   --danger-700: #ff7b72;
   --danger-border: #f8514966;
   --info: #8b949e;
+  /* 已关闭工作项状态点（GitHub closed=紫灰，Primer dark 实测） */
+  --closed: #a371f7;
 
   /* ---------- 背景 / 文字 / 边框（GitHub Dark 实测） ---------- */
   --bg-body: #0d1117;
@@ -172,6 +174,8 @@
   --danger-700: #9e1c25;
   --danger-border: #ff818266;
   --info: #59636e;
+  /* 已关闭工作项状态点（Primer light 实测） */
+  --closed: #8250df;
 
   /* ---------- 背景 / 文字 / 边框 ---------- */
   --bg-body: #e9edf3;

@@ -1,6 +1,7 @@
 # 22 — 接口文档待办事项
 
 > 2026-11-17，Kimi Code 起草，juice094 待审定。
+> **基线提醒（2026-11-23）**：本清单状态以 11-17 为基线；11-18~11-20 各波次（忘记密码/权限四层/监控域/组织初始化等）可能已推进 #1/#2/#5/#6，责任方需逐条复核后再勾。已确证变更仅 #3（下）。
 > 现状基线：Knife4j 已配双分组（团队协作 `/team/**` + 系统管理 `/sys/**`）；Apifox runbook 见 docs/15；团队规矩（docs/13 §二.4）：**改接口必须同步 Knife4j 注解，PR 描述带「文档影响」**。
 > 本文档 = 接口文档域的待办清单，随开发节奏维护；完成项打勾并注日期。
 
@@ -10,7 +11,7 @@
 |---|---|---|---|---|---|
 | 1 | **审计 `/team/task`、`/team/approval`、`/team/bug` 现有端点的 Knife4j 注解完备性**（@Tag/@Operation/@Parameter/@Schema 逐端点核对），补缺 | juice094 + bizflow-dev | P0 | 三个 Controller 全部端点有中文摘要、入参出参 @Schema 齐全 | ⬜（业务流转线推进中，状态机改动已带注解同步） |
 | 2 | **业务流转新增端点入文档**：`GET /team/task/dueSoon`、`GET /team/dashboard/summary`（+ 可能的 `/team/task/board`）、审计埋点后端点行为说明 | bizflow-dev 写码带注解，juice094 复核 | P0 | 随 PR 同步；Apifox 重导可见 | ⬜ 待第二轮实现 |
-| 3 | **物理删除端点契约变更文档化**（若宿拍板改逻辑删）：`/team/bug/delete*`、`/team/task/delete*` 响应语义变化写进 PR「文档影响」与本文档 | juice094 | P1 | 拍板后随 PR 完成 | ⬜ 挂起（等拍板） |
+| 3 | **物理删除端点契约变更文档化**（若宿拍板改逻辑删）：`/team/bug/delete*`、`/team/task/delete*` 响应语义变化写进 PR「文档影响」与本文档 | juice094 | P1 | 拍板后随 PR 完成 | ✅ 已拍已落（2026-11-17 宿裁逻辑删，flyway V3.9.6_5 三表 deleted 位；契约语义以代码+迁移脚本为准） |
 | 4 | **`/team/agent/**` 新接口文档**（docs/21 §三 10 个端点）：随 M4-α 开发同步 Knife4j + Apifox | agent 线（立项后定人） | P1（立项后升 P0） | 同 #1 标准 | ⬜ 未立项 |
 | 5 | **前端 api 层与后端合同一致性核对**：`jeecg-team-web/src/api/team.ts` 端点 vs 后端实际（路径/方法/参数名），出差异表 | juice094 | P1 | 差异清零或开 issue 跟踪 | ⬜ |
 | 6 | **仪表盘聚合接口契约**（docs/16 §四.3）：端点定型后与前端 dashboard 页面对字段（减少首页 N 次往返的目标可验收） | juice094 | P1 | 字段表双方确认 | ⬜ 依赖 #2 |
