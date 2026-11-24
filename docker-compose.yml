@@ -1,4 +1,5 @@
-version: '2'
+# 单体全栈编排（2026-11-24 PR #27 后补全：MinIO/Kafka/team-web 纳入，端口对齐 8081）
+# 使用：docker compose up -d --build（应用 jar 由 start-docker-compose.sh 预构建，激活 docker profile）
 services:
   jeecg-boot-mysql:
     build:
@@ -30,8 +31,6 @@ services:
 
   jeecg-boot-redis:
     image: registry.cn-hangzhou.aliyuncs.com/jeecgdocker/redis:5.0
-    # ports:
-    #   - 3792:6379
     restart: always
     hostname: jeecg-boot-redis
     container_name: jeecg-boot-redis
@@ -40,6 +39,48 @@ services:
       interval: 10s
       timeout: 5s
       retries: 12
+    networks:
+      - jeecg-boot
+
+  # word-sync 对象存储：StorageService 启动即 fail-fast 建桶，应用强依赖，必须 healthy 后才起 system
+  jeecg-boot-minio:
+    image: minio/minio:latest
+    restart: always
+    container_name: jeecg-boot-minio
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: minioadmin
+      MINIO_ROOT_PASSWORD: minioadmin
+    ports:
+      - 9002:9000
+      - 9003:9001
+    volumes:
+      - jeecg-minio-data:/data
+    healthcheck:
+      test: ["CMD", "mc", "ready", "local"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 20s
+    networks:
+      - jeecg-boot
+
+  # word-sync 事件总线（KRaft 单节点）；无此服务时应用可启动（admin.fail-fast=false）但 consumer 刷重连日志
+  jeecg-boot-kafka:
+    image: apache/kafka:3.8.1
+    restart: always
+    container_name: jeecg-boot-kafka
+    environment:
+      KAFKA_NODE_ID: 1
+      KAFKA_PROCESS_ROLES: broker,controller
+      KAFKA_LISTENERS: PLAINTEXT://:9092,CONTROLLER://:9093
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://jeecg-boot-kafka:9092
+      KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT
+      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@jeecg-boot-kafka:9093
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: 'true'
+      KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0
     networks:
       - jeecg-boot
 
@@ -53,24 +94,30 @@ services:
         condition: service_healthy
       jeecg-boot-redis:
         condition: service_healthy
+      jeecg-boot-minio:
+        condition: service_healthy
+      jeecg-boot-kafka:
+        condition: service_started
     container_name: jeecg-boot-system
     image: jeecg-boot-system
     hostname: jeecg-boot-system
     ports:
-      - 8080:8080
+      - 8081:8081
     networks:
       - jeecg-boot
-  jeecg-vue:
+
+  # 现行默认前端（团队协作工作台）；旧 jeecg-vue3 服务已下线（待迁移资产，git 历史可找回）
+  jeecg-team-web:
     build:
-      context: ./jeecgboot-vue3
-    container_name: jeecgboot-vue3-nginx
-    image: jeecgboot-vue3
+      context: ./jeecg-team-web
+    container_name: jeecg-team-web
+    image: jeecg-team-web
     depends_on:
       - jeecg-boot-system
     networks:
       - jeecg-boot
     ports:
-      - 80:80
+      - 3200:80
 
   jeecg-boot-pgvector:
     image: registry.cn-hangzhou.aliyuncs.com/jeecgdocker/pgvector
@@ -79,8 +126,6 @@ services:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres
       POSTGRES_DB: vector_db
-#    ports:
-#      - 5432:5432
     restart: always
     networks:
       - jeecg-boot
@@ -88,3 +133,6 @@ services:
 networks:
   jeecg-boot:
     name: jeecg_boot
+
+volumes:
+  jeecg-minio-data:

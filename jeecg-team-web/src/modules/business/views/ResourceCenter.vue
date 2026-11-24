@@ -84,6 +84,7 @@ onBeforeUnmount(() => window.removeEventListener(THEME_CHANGE_EVENT, onThemeChan
   height: calc(100vh - 190px);
   min-height: 720px;
   border: 0;
-  background: #f2f5f9;
+  /* 跟随主题令牌的衬底色——禁止硬编码浅色值（深色基线下会露出亮块） */
+  background: var(--bg-muted);
 }
 </style>

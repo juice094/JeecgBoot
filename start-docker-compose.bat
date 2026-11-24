@@ -1,18 +1,16 @@
 @echo off
-:: JEECG Boot 一键启动脚本 (Windows CMD 版)
+:: JEECG Boot 一键启动脚本 (Windows CMD 版，2026-11-24 对齐现行栈：team-web 镜像内构建，端口 8081/3200)
 chcp 65001 > nul
-set RED=31
-set GREEN=32
 
 echo.
-echo [1/5] 检查必要工具...
+echo [1/3] 检查必要工具...
 where docker > nul 2>&1 || (
     echo [错误] 未安装 docker，请先安装 Docker Desktop
     pause
     exit /b 1
 )
-where docker-compose > nul 2>&1 || (
-    echo [错误] 未安装 docker-compose
+docker compose version > nul 2>&1 || (
+    echo [错误] 未安装 docker compose 插件
     pause
     exit /b 1
 )
@@ -21,41 +19,8 @@ where mvn > nul 2>&1 || (
     pause
     exit /b 1
 )
-where pnpm > nul 2>&1 || (
-    echo [错误] 未安装 pnpm
-    pause
-    exit /b 1
-)
 
-echo [2/5] 设置 hosts 文件...
-set "entry1=127.0.0.1   jeecg-boot-system"
-set "entry2=127.0.0.1   jeecg-boot-mysql"
-set "hostsFile=C:\Windows\System32\drivers\etc\hosts"
-
-rem 检查第一个条目是否存在
-findstr /c:"%entry1%" "%hostsFile%" >nul
-if errorlevel 1 (
-    echo %entry1% >> "%hostsFile%"
-    echo 已添加: %entry1%
-) else (
-    echo 已存在: %entry1%
-)
-
-rem 检查第二个条目是否存在
-findstr /c:"%entry2%" "%hostsFile%" >nul
-if errorlevel 1 (
-    echo %entry2% >> "%hostsFile%"
-    echo 已添加: %entry2%
-) else (
-    echo 已存在: %entry2%
-)
-
-if %errorlevel% neq 0 (
-    echo [错误] 设置 hosts 文件失败，请检查权限！
-    pause
-)
-
-echo [3/5] 编译后端项目...
+echo [2/3] 编译后端项目（激活 docker profile，过滤出 application-docker.yml）...
 cd jeecg-boot
 call mvn clean install -Pdocker
 if %errorlevel% neq 0 (
@@ -65,30 +30,16 @@ if %errorlevel% neq 0 (
 )
 cd ..
 
-echo [4/5] 编译前端项目...
-cd jeecgboot-vue3
-call pnpm install
-if %errorlevel% neq 0 (
-    echo [错误] 前端依赖安装失败！
-    pause
-    exit /b 1
-)
-call pnpm run build:docker
-if %errorlevel% neq 0 (
-    echo [错误] 前端编译失败！
-    pause
-    exit /b 1
-)
-cd ..
-
-echo [5/5] 启动Docker容器...
-docker-compose up -d
+echo [3/3] 构建并启动全栈容器（team-web 前端在镜像内构建，无需宿主 pnpm）...
+docker compose up -d --build
 
 echo.
 echo ========================================
-echo   JEECG Boot 启动成功 (请等待1分钟，待所有容器启动成功）
+echo   JEECG Boot 启动成功 (请等待1-2分钟，待 healthcheck 全部通过）
 echo ========================================
-echo 前端访问:      http://localhost
-echo 后端API:      http://localhost:8080/jeecg-boot
+echo 前端访问:     http://localhost:3200
+echo 后端API:      http://localhost:8081/jeecg-boot
+echo 接口文档:     http://localhost:8081/jeecg-boot/doc.html
+echo MinIO 控制台: http://localhost:9003（minioadmin/minioadmin）
 echo.
 pause
